@@ -1,5 +1,5 @@
 [![build](https://img.shields.io/travis/amq/tiva_oled_joystick.svg)](https://travis-ci.org/amq/tiva_oled_joystick)
-[![analysis](https://img.shields.io/coverity/scan/11388.svg)](https://scan.coverity.com/projects/tiva_oled_joystick)
+[![analysis](https://img.shields.io/coverity/scan/11388.svg)](https://scan.coverity.com/projects/amq-tiva_oled_joystick)
 
 Building
 ```

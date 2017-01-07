@@ -1,10 +1,10 @@
-CODEGEN_INSTALL_DIR = $(wildcard $(HOME)/gcc-arm-none-eabi-*)
+CODEGEN_INSTALL_DIR = $(GCC_DIR)
 
 CC = "$(CODEGEN_INSTALL_DIR)/bin/arm-none-eabi-gcc"
 LNK = "$(CODEGEN_INSTALL_DIR)/bin/arm-none-eabi-gcc"
 
-XDC_INSTALL_DIR := $(wildcard $(HOME)/ti/xdctools_*)
-TIRTOS_INSTALL_DIR := $(wildcard $(HOME)/ti/tirtos_tivac_*)
+XDC_INSTALL_DIR := $(XDCTOOLS_DIR)
+TIRTOS_INSTALL_DIR := $(TIRTOS_DIR)
 TIDRIVERS_INSTALL_DIR := $(wildcard $(TIRTOS_INSTALL_DIR)/products/tidrivers_tivac_*)
 BIOS_INSTALL_DIR := $(wildcard $(TIRTOS_INSTALL_DIR)/products/bios_*)
 NDK_INSTALL_DIR := $(wildcard $(TIRTOS_INSTALL_DIR)/products/ndk_*)
