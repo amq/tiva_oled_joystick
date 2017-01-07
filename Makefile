@@ -1,16 +1,16 @@
-CODEGEN_INSTALL_DIR = $(HOME)/gcc-arm-none-eabi-5_4-2016q3
+CODEGEN_INSTALL_DIR = $(wildcard $(HOME)/gcc-arm-none-eabi-*)
 
 CC = "$(CODEGEN_INSTALL_DIR)/bin/arm-none-eabi-gcc"
 LNK = "$(CODEGEN_INSTALL_DIR)/bin/arm-none-eabi-gcc"
 
-XDC_INSTALL_DIR := $(HOME)/ti/xdctools_3_32_00_06_core
-TIRTOS_INSTALL_DIR := $(HOME)/ti/tirtos_tivac_2_16_01_14
-TIDRIVERS_INSTALL_DIR := $(TIRTOS_INSTALL_DIR)/products/tidrivers_tivac_2_16_01_13
-BIOS_INSTALL_DIR := $(TIRTOS_INSTALL_DIR)/products/bios_6_45_02_31
-NDK_INSTALL_DIR := $(TIRTOS_INSTALL_DIR)/products/ndk_2_25_00_09
-NS_INSTALL_DIR := $(TIRTOS_INSTALL_DIR)/products/ns_1_11_00_10
-UIA_INSTALL_DIR := $(TIRTOS_INSTALL_DIR)/products/uia_2_00_05_50
-TIVAWARE_INSTALL_DIR ?= $(TIRTOS_INSTALL_DIR)/products/TivaWare_C_Series-2.1.1.71b
+XDC_INSTALL_DIR := $(wildcard $(HOME)/ti/xdctools_*)
+TIRTOS_INSTALL_DIR := $(wildcard $(HOME)/ti/tirtos_tivac_*)
+TIDRIVERS_INSTALL_DIR := $(wildcard $(TIRTOS_INSTALL_DIR)/products/tidrivers_tivac_*)
+BIOS_INSTALL_DIR := $(wildcard $(TIRTOS_INSTALL_DIR)/products/bios_*)
+NDK_INSTALL_DIR := $(wildcard $(TIRTOS_INSTALL_DIR)/products/ndk_*)
+NS_INSTALL_DIR := $(wildcard $(TIRTOS_INSTALL_DIR)/products/ns_*)
+UIA_INSTALL_DIR := $(wildcard $(TIRTOS_INSTALL_DIR)/products/uia_*)
+TIVAWARE_INSTALL_DIR ?= $(wildcard $(TIRTOS_INSTALL_DIR)/products/TivaWare_C_Series-*)
 
 TIRTOS_PACKAGES_DIR = $(TIRTOS_INSTALL_DIR)/packages
 TIDRIVERS_PACKAGES_DIR = $(TIDRIVERS_INSTALL_DIR)/packages
