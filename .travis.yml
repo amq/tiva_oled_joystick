@@ -2,9 +2,6 @@ language: cpp
 sudo: false
 
 addons:
-  apt:
-    packages:
-      libc6-i386
   coverity_scan:
     project:
       name: "amq/tiva_oled_joystick"
