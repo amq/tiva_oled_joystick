@@ -22,8 +22,8 @@ cache:
     - $TIRTOS_DIR
 
 install:
-  - if [ ! -d $XDCTOOLS_DIR ] || [ ! -d $TIRTOS_DIR ]; then wget $TIRTOS_URL -O tirtos.bin; ./tirtos.bin --mode unattended; fi
-  - if [ ! -d $GCC_DIR ]; then wget $GCC_URL -O gcc.tar.bz2; tar xfj gcc.tar.bz2 -C $HOME; fi
+  - if [ ! -e $XDCTOOLS_DIR/xs ]; then wget $TIRTOS_URL -O tirtos.bin; ./tirtos.bin --mode unattended; fi
+  - if [ ! -e $GCC_DIR/bin/arm-none-eabi-gcc ]; then wget $GCC_URL -O gcc.tar.bz2; tar xfj gcc.tar.bz2 -C $HOME; fi
   - export PATH=$PATH:$GCC_DIR/bin
 
 script:
