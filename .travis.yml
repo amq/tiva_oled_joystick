@@ -2,12 +2,15 @@ language: cpp
 sudo: false
 
 addons:
+  apt:
+    packages:
+      libc6-i386
   coverity_scan:
     project:
       name: "amq/tiva_oled_joystick"
       description: "Build submitted via Travis CI"
     notification_email: "amq@users.noreply.github.com"
-    build_command_prepend: "make clean; cov-configure --compiler $GCC_DIR/bin/arm-none-eabi-gcc --comptype gcc"
+    build_command_prepend: "make clean; cov-configure --compiler $GCC_DIR/bin/arm-none-eabi-gcc --comptype gcc --template"
     build_command: "make"
     branch_pattern: coverity_scan
 
