@@ -17,7 +17,7 @@
 // #include <ti/drivers/WiFi.h>
 
 /* Board Header file */
-#include "Board.h"
+#include "local_inc/Board.h"
 
 #define TASKSTACKSIZE   512
 

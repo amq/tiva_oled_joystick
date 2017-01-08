@@ -23,7 +23,7 @@ XDCPATH = $(TIRTOS_PACKAGES_DIR);$(TIDRIVERS_PACKAGES_DIR);$(BIOS_PACKAGES_DIR);
 
 CFLAGS = -I$(TIVAWARE_INSTALL_DIR) -I$(BIOS_PACKAGES_DIR)/ti/sysbios/posix -D_POSIX_SOURCE -D PART_TM4C1294NCPDT -D gcc -D TIVAWARE -mcpu=cortex-m4 -march=armv7e-m -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -ffunction-sections -fdata-sections -g -gstrict-dwarf -Wall
 
-LFLAGS = -Wl,-T,EK_TM4C1294XL.lds -Wl,-Map,$(NAME).map -Wl,-T,$(NAME)/linker.cmd -L$(TIVAWARE_INSTALL_DIR)/grlib/gcc -L$(TIVAWARE_INSTALL_DIR)/usblib/gcc -L$(TIVAWARE_INSTALL_DIR)/driverlib/gcc -lgr -lusb -ldriver -march=armv7e-m -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -nostartfiles -static -Wl,--gc-sections -L$(BIOS_PACKAGES_DIR)/gnu/targets/arm/libs/install-native/arm-none-eabi/lib/armv7e-m/fpu -lgcc -lc -lm -lrdimon
+LFLAGS = -Wl,-T,local_inc/EK_TM4C1294XL.lds -Wl,-Map,$(NAME).map -Wl,-T,$(NAME)/linker.cmd -L$(TIVAWARE_INSTALL_DIR)/grlib/gcc -L$(TIVAWARE_INSTALL_DIR)/usblib/gcc -L$(TIVAWARE_INSTALL_DIR)/driverlib/gcc -lgr -lusb -ldriver -march=armv7e-m -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -nostartfiles -static -Wl,--gc-sections -L$(BIOS_PACKAGES_DIR)/gnu/targets/arm/libs/install-native/arm-none-eabi/lib/armv7e-m/fpu -lgcc -lc -lm -lrdimon
 
 ###################### SHOULD NOT MODIFY BELOW THIS LINE ############################
 export XDCPATH
