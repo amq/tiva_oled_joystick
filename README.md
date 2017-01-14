@@ -9,10 +9,14 @@ export TIRTOS_DIR="$HOME/ti/tirtos_tivac_2_16_01_14"
 make
 ```
 
+Flashing
+```
+export UNIFLASH_DIR="$HOME/ti/uniflash_4.1"
+sudo bash $UNIFLASH_DIR/dslite.sh --config TargetConfiguration.ccxml tiva_oled_joystick.out
+```
+
 Prerequisites
-
-[gcc-arm-none-eabi >= 4.9](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm)
-
-[tirtos_tivac >= 2.16](http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/tirtos/index.html)
-
-[xdctools >= 3.32](http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/tirtos/index.html)
+- [gcc-arm-none-eabi >= 4.9](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm)
+- [xdctools >= 3.32](http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/tirtos/index.html)
+- [tirtos_tivac >= 2.16](http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/tirtos/index.html)
+- [uniflash >= 4.1](http://www.ti.com/tool/UNIFLASH)
