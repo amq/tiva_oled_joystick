@@ -1,3 +1,3 @@
 #pragma once
 
-void LedTask_init();
+void LedTask_init(void);

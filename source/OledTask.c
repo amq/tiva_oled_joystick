@@ -11,7 +11,7 @@ static void OledMemorySize(uint8_t X1, uint8_t X2, uint8_t Y1, uint8_t Y2);
 static void OledColor(uint8_t colorMSB, uint8_t colorLSB);
 static void OledBeckground(void);
 
-void OledTask_init() {
+void OledTask_init(void) {
   Task_Handle taskHandle;
   Task_Params taskParams;
   Error_Block eb;
@@ -48,7 +48,6 @@ static void SpiWrite(uint8_t data) {
   Bool transferOK;
 
   SPI_Params_init(&spiParams);
-
   spiHandle = SPI_open(SPI_DESC, &spiParams);
 
   if (spiHandle == NULL) {

@@ -3,7 +3,7 @@
 
 static void LedTaskFxn(UArg arg0, UArg arg1);
 
-void LedTask_init() {
+void LedTask_init(void) {
   Task_Handle LedTaskHandle;
   Task_Params LedTaskParams;
   Error_Block eb;
