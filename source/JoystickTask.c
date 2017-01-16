@@ -27,6 +27,7 @@ static void JoystickTaskFxn(UArg arg0, UArg arg1) {
 
   uint8_t txBuffer[2] = {0};
   uint8_t rxBuffer[2] = {0};
+  int8_t coordinates[2] = {0};
 
   I2C_Params_init(&i2cParams);
   i2cHandle = I2C_open(I2C_DESC, &i2cParams);
@@ -39,7 +40,7 @@ static void JoystickTaskFxn(UArg arg0, UArg arg1) {
   i2cTransaction.writeBuf = txBuffer;
   i2cTransaction.readBuf = rxBuffer;
   i2cTransaction.writeCount = 2;
-  i2cTransaction.readCount = 2;
+  i2cTransaction.readCount = 1;
 
   /* Soft reset */
   txBuffer[0] = AS5013_CONTROL1;
@@ -49,13 +50,17 @@ static void JoystickTaskFxn(UArg arg0, UArg arg1) {
   i2cTransaction.writeCount = 1;
 
   while (1) {
-    Task_sleep(5);
+    Task_sleep(10);
 
     txBuffer[0] = AS5013_X;
-    txBuffer[1] = AS5013_Y;
     (void)I2C_transfer(i2cHandle, &i2cTransaction);
+    coordinates[0] = rxBuffer[0];
 
-    (void)Mailbox_post((Mailbox_Handle)arg0, rxBuffer, BIOS_NO_WAIT);
+    txBuffer[0] = AS5013_Y;
+    (void)I2C_transfer(i2cHandle, &i2cTransaction);
+    coordinates[1] = rxBuffer[0];
+
+    (void)Mailbox_post((Mailbox_Handle)arg0, &coordinates, BIOS_NO_WAIT);
   }
 
   I2C_close(i2cHandle);
