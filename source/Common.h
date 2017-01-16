@@ -15,6 +15,7 @@
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Mailbox.h>
 
 /* TI-RTOS Header files */
 #include <ti/drivers/GPIO.h>
@@ -23,3 +24,9 @@
 
 /* Board Header file */
 #include "local_inc/Board.h"
+
+#define v(fmt, ...) \
+  if (verbose) \
+    System_printf("%s(): " fmt, __func__, __VA_ARGS__); System_flush();
+
+extern int verbose;

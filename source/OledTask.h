@@ -68,4 +68,4 @@
 #define SEPS114A_RGB_POL 0xE1
 #define SEPS114A_DISPLAY_MODE_CONTROL 0xE5
 
-void OledTask_init(void);
+void OledTask_init(Mailbox_Handle mailboxHandle);

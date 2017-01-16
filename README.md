@@ -20,3 +20,6 @@ Prerequisites
 - [xdctools >= 3.32](http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/tirtos/index.html)
 - [tirtos_tivac >= 2.16](http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/tirtos/index.html)
 - [uniflash >= 4.1](http://www.ti.com/tool/UNIFLASH)
+
+Documentation
+- [SYS/BIOS (TI-RTOS Kernel) User's Guide](http://www.ti.com/lit/ug/spruex3q/spruex3q.pdf)
