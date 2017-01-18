@@ -25,8 +25,9 @@
 /* Board Header file */
 #include "local_inc/Board.h"
 
+#ifdef DEBUG
 #define v(fmt, ...) \
-  if (verbose) \
-    System_printf("%s(): " fmt, __func__, __VA_ARGS__); System_flush();
-
-extern int verbose;
+  System_printf("%s(): " fmt, __func__, __VA_ARGS__); System_flush();
+#else
+#define v(fmt, ...)
+#endif
