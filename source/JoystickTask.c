@@ -16,7 +16,7 @@ void JoystickTask_init(Mailbox_Handle mailboxHandle) {
   taskHandle = Task_create((Task_FuncPtr)JoystickTaskFxn, &taskParams, &eb);
 
   if (taskHandle == NULL) {
-    System_abort("JoystickTask create failed");
+    System_abort("JoystickTask create failed\n");
   }
 }
 
@@ -28,6 +28,14 @@ static void JoystickTaskFxn(UArg arg0, UArg arg1) {
   uint8_t txBuffer[2] = {0};
   uint8_t rxBuffer[2] = {0};
   int8_t coordinates[2] = {0};
+
+  GPIOPinTypeGPIOOutput(GPIO_JOYSTICK_BASE_RST, GPIO_JOYSTICK_PIN_RST);
+  GPIOPinWrite(GPIO_JOYSTICK_BASE_RST, GPIO_JOYSTICK_PIN_RST, GPIO_JOYSTICK_PIN_RST);
+  Task_sleep(10);
+  GPIOPinWrite(GPIO_JOYSTICK_BASE_RST, GPIO_JOYSTICK_PIN_RST, 0);
+  Task_sleep(10);
+  GPIOPinWrite(GPIO_JOYSTICK_BASE_RST, GPIO_JOYSTICK_PIN_RST, GPIO_JOYSTICK_PIN_RST);
+  Task_sleep(100);
 
   I2C_Params_init(&i2cParams);
   i2cHandle = I2C_open(I2C_DESC, &i2cParams);
@@ -53,13 +61,18 @@ static void JoystickTaskFxn(UArg arg0, UArg arg1) {
     Task_sleep(10);
 
     txBuffer[0] = AS5013_X;
-    (void)I2C_transfer(i2cHandle, &i2cTransaction);
+    if (!I2C_transfer(i2cHandle, &i2cTransaction)) {
+      continue;
+    }
     coordinates[0] = rxBuffer[0];
 
     txBuffer[0] = AS5013_Y;
-    (void)I2C_transfer(i2cHandle, &i2cTransaction);
+    if (!I2C_transfer(i2cHandle, &i2cTransaction)) {
+      continue;
+    }
     coordinates[1] = rxBuffer[0];
 
+    v("x: %d; y: %d\n", coordinates[0], coordinates[1]);
     (void)Mailbox_post((Mailbox_Handle)arg0, &coordinates, BIOS_NO_WAIT);
   }
 
