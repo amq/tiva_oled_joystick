@@ -25,7 +25,7 @@ void OledTask_init(Mailbox_Handle mailboxHandle) {
   taskHandle = Task_create((Task_FuncPtr)OledTaskFxn, &taskParams, &eb);
 
   if (taskHandle == NULL) {
-    System_abort("OledTask create failed");
+    System_abort("OledTask create failed\n");
   }
 }
 
@@ -37,12 +37,20 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
   int8_t y2 = 95;
 
   OledInit();
+  OledClearBlack();
+
+  Task_sleep(1000);
+
   OledClearWhite();
+
+  Task_sleep(1000);
+
+  OledClearBlack();
 
   /* Draw a square */
   OledMemorySize(x1, x2, y1, y2);
   OledDdramAccess();
-  for (int i = 0; i < 9216; i++) {
+  for (int i = 0; i < 1900; i++) {
     OledColor(0x00, 0xFF);
   }
 
@@ -51,10 +59,8 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
 
       /* Move the square left */
       if (coordinates[0] > 10) {
-        OledMemorySize(x1 - 10, x2, y1, y2);
-        OledDdramAccess();
         for (int i = 0; i < 1900; i++) {
-          OledColor(0xFF, 0xFF);
+          OledColor(0x00, 0x00);
         }
 
         x1 = x1 + 10;
@@ -69,10 +75,8 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
 
       /* Move the square right */
       if (coordinates[0] < -10) {
-        OledMemorySize(x1 + 10, x2, y1, y2);
-        OledDdramAccess();
         for (int i = 0; i < 1900; i++) {
-          OledColor(0xFF, 0xFF);
+          OledColor(0x00, 0x00);
         }
 
         x1 = x1 - 10;
@@ -84,31 +88,30 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
           OledColor(0x00, 0xFF);
         }
       }
-
-      v("x: %d\n, y: %d\n", coordinates[0], coordinates[1]);
     }
   }
 }
 
 static void SpiWrite(uint8_t data) {
-  SPI_Handle spiHandle;
-  SPI_Params spiParams;
+  static SPI_Handle spiHandle = NULL;
   SPI_Transaction spiTransaction;
 
-  SPI_Params_init(&spiParams);
-  spiHandle = SPI_open(SPI_DESC, &spiParams);
-
   if (spiHandle == NULL) {
-    System_abort("SPI open failed");
+    SPI_Params spiParams;
+    SPI_Params_init(&spiParams);
+    spiParams.bitRate = 30*1000*1000;
+    spiHandle = SPI_open(SPI_DESC, &spiParams);
+
+    if (spiHandle == NULL) {
+      System_abort("SPI open failed\n");
+    }
   }
 
-  spiTransaction.count = sizeof(data);
+  spiTransaction.count = 1;
   spiTransaction.txBuf = &data;
   spiTransaction.rxBuf = NULL;
 
   (void)SPI_transfer(spiHandle, &spiTransaction);
-
-  SPI_close(spiHandle);
 }
 
 /*
@@ -132,7 +135,7 @@ static void OledInit(void) {
   OledCommand(SEPS114A_STANDBY_ON_OFF, 0x00);
   Task_sleep(5);
   OledCommand(SEPS114A_DISPLAY_ON_OFF, 0x00);
-  OledCommand(SEPS114A_ANALOG_CONTROL, 0x00);
+  OledCommand(SEPS114A_ANALOG_CONTROL, 0x40);
   OledCommand(SEPS114A_OSC_ADJUST, 0x03);
   OledCommand(SEPS114A_DISPLAY_X1, 0x00);
   OledCommand(SEPS114A_DISPLAY_X2, 0x5F);
@@ -161,16 +164,17 @@ static void OledInit(void) {
   OledCommand(SEPS114A_SCAN_OFF_LEVEL, 0x04);
   OledCommand(SEPS114A_DISPLAYSTART_X, 0x00);
   OledCommand(SEPS114A_DISPLAYSTART_Y, 0x00);
+  Task_sleep(100);
   OledCommand(SEPS114A_DISPLAY_ON_OFF, 0x01);
-
-  OledCommand(SEPS114A_MEMORY_WRITE_READ, 0x02);
 }
 
 static void OledCommand(uint8_t command, uint8_t data) {
+  /* select index */
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
   GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, 0);
   SpiWrite(command);
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
+  /* write data */
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
   GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, GPIO_OLED_PIN_DC);
   OledData(data);

@@ -1,8 +1,6 @@
 #pragma once
 
-#define OLED_BOOSTERPACK_1
-
-#ifdef OLED_BOOSTERPACK_1
+#ifdef SSIM_2
 #define SPI_DESC Board_SPI0
 #define GPIO_OLED_BASE_DC GPIO_PORTM_BASE
 #define GPIO_OLED_PIN_DC GPIO_PIN_3
@@ -14,7 +12,7 @@
 #define GPIO_OLED_PIN_RW GPIO_PIN_4
 #endif
 
-#ifdef OLED_BOOSTERPACK_2
+#ifdef SSIM_3
 #define SPI_DESC Board_SPI1
 #define GPIO_OLED_BASE_DC GPIO_PORTM_BASE
 #define GPIO_OLED_PIN_DC GPIO_PIN_7
