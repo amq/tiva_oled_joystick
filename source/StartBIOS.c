@@ -1,11 +1,9 @@
 #include "Common.h"
-#include "OledTask.h"
 #include "JoystickTask.h"
-
-int verbose = 0;
+#include "OledTask.h"
 
 int main(void) {
-  Board_initGeneral();
+  Board_initGeneral(120*1000*1000);
   Board_initGPIO();
   Board_initI2C();
   Board_initSPI();
@@ -20,8 +18,8 @@ int main(void) {
     System_abort("Mailbox create failed\n");
   }
 
-  OledTask_init(mailboxHandle);
   JoystickTask_init(mailboxHandle);
+  OledTask_init(mailboxHandle);
 
   BIOS_start();
 

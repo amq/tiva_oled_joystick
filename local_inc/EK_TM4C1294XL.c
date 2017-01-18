@@ -38,28 +38,28 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <inc/hw_memmap.h>
+#include <inc/hw_types.h>
+#include <inc/hw_ints.h>
+#include <inc/hw_gpio.h>
+
+#include <driverlib/gpio.h>
+#include <driverlib/flash.h>
+#include <driverlib/sysctl.h>
+#include <driverlib/i2c.h>
+#include <driverlib/ssi.h>
+#include <driverlib/uart.h>
+#include <driverlib/udma.h>
+#include <driverlib/pin_map.h>
 
 #include <xdc/std.h>
+#include <xdc/cfg/global.h>
 #include <xdc/runtime/Error.h>
 #include <xdc/runtime/System.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
-#include <inc/hw_ints.h>
-#include <inc/hw_memmap.h>
-#include <inc/hw_types.h>
-#include <inc/hw_gpio.h>
-
-#include <driverlib/flash.h>
-#include <driverlib/gpio.h>
-#include <driverlib/i2c.h>
-#include <driverlib/pin_map.h>
-#include <driverlib/pwm.h>
-#include <driverlib/ssi.h>
-#include <driverlib/sysctl.h>
-#include <driverlib/uart.h>
-#include <driverlib/udma.h>
-
 #include "EK_TM4C1294XL.h"
+
 
 #ifndef TI_DRIVERS_UART_DMA
 #define TI_DRIVERS_UART_DMA 0
@@ -124,7 +124,9 @@ void EK_TM4C1294XL_initDMA(void)
     Hwi_Params  hwiParams;
 
     if (!dmaInitialized) {
+
         Error_init(&eb);
+
         Hwi_Params_init(&hwiParams);
         Hwi_construct(&(dmaHwiStruct), INT_UDMAERR, dmaErrorHwi,
                       &hwiParams, &eb);
@@ -146,8 +148,13 @@ void EK_TM4C1294XL_initDMA(void)
 /*
  *  ======== EK_TM4C1294XL_initGeneral ========
  */
-void EK_TM4C1294XL_initGeneral(void)
+uint32_t EK_TM4C1294XL_initGeneral(uint32_t sysclock)
 {
+   uint32_t ui32SysClock;
+   ui32SysClock = SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ |
+                                      SYSCTL_OSC_MAIN |
+                                      SYSCTL_USE_PLL |
+                                      SYSCTL_CFG_VCO_480), sysclock);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
@@ -166,6 +173,7 @@ void EK_TM4C1294XL_initGeneral(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOR);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOS);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOT);
+    return ui32SysClock;
 }
 
 /*
@@ -187,19 +195,15 @@ void EK_TM4C1294XL_initGeneral(void)
  *  Double curly braces are needed to avoid GCC bug #944572
  *  https://bugs.launchpad.net/gcc-linaro/+bug/944572
  */
-NIMU_DEVICE_TABLE_ENTRY NIMUDeviceTable[2] = {
-    {
 #if TI_EXAMPLES_PPP
-        /* Use PPP driver for PPP example only */
-        .init = USBSerialPPP_NIMUInit
+/* Use PPP driver for PPP example only */
+NIMU_DEVICE_TABLE_ENTRY  NIMUDeviceTable[2] = {{USBSerialPPP_NIMUInit}, {NULL}};
 #else
-        /* Default: use Ethernet driver */
-        .init = EMACSnow_NIMUInit
+/* Default: use Ethernet driver */
+NIMU_DEVICE_TABLE_ENTRY  NIMUDeviceTable[2] = {{EMACSnow_NIMUInit}, {NULL}};
 #endif
-    },
-    {NULL}
-};
 
+/* EMAC objects */
 EMACSnow_Object emacObjects[EK_TM4C1294XL_EMACCOUNT];
 
 /*
@@ -211,19 +215,14 @@ EMACSnow_Object emacObjects[EK_TM4C1294XL_EMACCOUNT];
 unsigned char macAddress[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 const EMACSnow_HWAttrs emacHWAttrs[EK_TM4C1294XL_EMACCOUNT] = {
-    {
-        .baseAddr = EMAC0_BASE,
-        .intNum = INT_EMAC0,
-        .intPriority = (~0),
-        .macAddress = macAddress
-    }
+    {EMAC0_BASE, INT_EMAC0, ~0 /* Interrupt priority */, macAddress}
 };
 
 const EMAC_Config EMAC_config[] = {
     {
-        .fxnTablePtr = &EMACSnow_fxnTable,
-        .object = &emacObjects[0],
-        .hwAttrs = &emacHWAttrs[0]
+        &EMACSnow_fxnTable,
+        &emacObjects[0],
+        &emacHWAttrs[0]
     },
     {NULL, NULL, NULL}
 };
@@ -313,9 +312,9 @@ GPIO_CallbackFxn gpioCallbackFunctions[] = {
 
 /* The device-specific GPIO_config structure */
 const GPIOTiva_Config GPIOTiva_config = {
-    .pinConfigs = (GPIO_PinConfig *)gpioPinConfigs,
-    .callbacks = (GPIO_CallbackFxn *)gpioCallbackFunctions,
-    .numberOfPinConfigs = sizeof(gpioPinConfigs)/sizeof(GPIO_PinConfig),
+    .pinConfigs = (GPIO_PinConfig *) gpioPinConfigs,
+    .callbacks = (GPIO_CallbackFxn *) gpioCallbackFunctions,
+    .numberOfPinConfigs = sizeof(gpioPinConfigs) / sizeof(GPIO_PinConfig),
     .numberOfCallbacks = sizeof(gpioCallbackFunctions)/sizeof(GPIO_CallbackFxn),
     .intPriority = (~0)
 };
@@ -341,32 +340,26 @@ void EK_TM4C1294XL_initGPIO(void)
 #include <ti/drivers/I2C.h>
 #include <ti/drivers/i2c/I2CTiva.h>
 
+/* I2C objects */
 I2CTiva_Object i2cTivaObjects[EK_TM4C1294XL_I2CCOUNT];
 
+/* I2C configuration structure, describing which pins are to be used */
 const I2CTiva_HWAttrs i2cTivaHWAttrs[EK_TM4C1294XL_I2CCOUNT] = {
-    {
-        .baseAddr = I2C7_BASE,
-        .intNum = INT_I2C7,
-        .intPriority = (~0)
-    },
-    {
-        .baseAddr = I2C8_BASE,
-        .intNum = INT_I2C8,
-        .intPriority = (~0)
-    }
+#if I2CM_7
+    {I2C7_BASE, INT_I2C7, ~0 /* Interrupt priority */},
+#endif
+#if I2CM_8
+    {I2C8_BASE, INT_I2C8, ~0 /* Interrupt priority */}
+#endif
 };
 
 const I2C_Config I2C_config[] = {
-    {
-        .fxnTablePtr = &I2CTiva_fxnTable,
-        .object = &i2cTivaObjects[0],
-        .hwAttrs = &i2cTivaHWAttrs[0]
-    },
-    {
-        .fxnTablePtr = &I2CTiva_fxnTable,
-        .object = &i2cTivaObjects[1],
-        .hwAttrs = &i2cTivaHWAttrs[1]
-    },
+#if I2CM_7
+    {&I2CTiva_fxnTable, &i2cTivaObjects[EK_TM4C1294XL_I2C7], &i2cTivaHWAttrs[EK_TM4C1294XL_I2C7]},
+#endif
+#if I2CM_8
+    {&I2CTiva_fxnTable, &i2cTivaObjects[EK_TM4C1294XL_I2C8], &i2cTivaHWAttrs[EK_TM4C1294XL_I2C8]},
+#endif
     {NULL, NULL, NULL}
 };
 
@@ -383,24 +376,26 @@ void EK_TM4C1294XL_initI2C(void)
      * conflict before running your the application.
      */
     /* Enable the peripheral */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C7);
+#if I2CM_7
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C7);
 
-    /* Configure the appropriate pins to be I2C instead of GPIO. */
-    GPIOPinConfigure(GPIO_PD0_I2C7SCL);
-    GPIOPinConfigure(GPIO_PD1_I2C7SDA);
-    GPIOPinTypeI2CSCL(GPIO_PORTD_BASE, GPIO_PIN_0);
-    GPIOPinTypeI2C(GPIO_PORTD_BASE, GPIO_PIN_1);
+  /* Configure the appropriate pins to be I2C instead of GPIO. */
+  GPIOPinConfigure(GPIO_PD0_I2C7SCL);
+  GPIOPinConfigure(GPIO_PD1_I2C7SDA);
+  GPIOPinTypeI2CSCL(GPIO_PORTD_BASE, GPIO_PIN_0);
+  GPIOPinTypeI2C(GPIO_PORTD_BASE, GPIO_PIN_1);
+#endif
+  /* I2C8 Init */
+  /* Enable the peripheral */
+#if I2CM_8
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C8);
 
-    /* I2C8 Init */
-    /* Enable the peripheral */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C8);
-
-    /* Configure the appropriate pins to be I2C instead of GPIO. */
-    GPIOPinConfigure(GPIO_PA2_I2C8SCL);
-    GPIOPinConfigure(GPIO_PA3_I2C8SDA);
-    GPIOPinTypeI2CSCL(GPIO_PORTA_BASE, GPIO_PIN_2);
-    GPIOPinTypeI2C(GPIO_PORTA_BASE, GPIO_PIN_3);
-
+  /* Configure the appropriate pins to be I2C instead of GPIO. */
+  GPIOPinConfigure(GPIO_PA2_I2C8SCL);
+  GPIOPinConfigure(GPIO_PA3_I2C8SDA);
+  GPIOPinTypeI2CSCL(GPIO_PORTA_BASE, GPIO_PIN_2);
+  GPIOPinTypeI2C(GPIO_PORTA_BASE, GPIO_PIN_3);
+#endif
     I2C_init();
 }
 
@@ -415,23 +410,21 @@ void EK_TM4C1294XL_initI2C(void)
 
 #include <ti/drivers/PWM.h>
 #include <ti/drivers/pwm/PWMTiva.h>
+#include <driverlib/pwm.h>
 
 PWMTiva_Object pwmTivaObjects[EK_TM4C1294XL_PWMCOUNT];
 
+/* PWM configuration structure */
 const PWMTiva_HWAttrs pwmTivaHWAttrs[EK_TM4C1294XL_PWMCOUNT] = {
     {
-        .baseAddr = PWM0_BASE,
-        .pwmOutput = PWM_OUT_0,
-        .pwmGenOpts = PWM_GEN_MODE_DOWN | PWM_GEN_MODE_DBG_RUN
+        PWM0_BASE,
+        PWM_OUT_0,
+        PWM_GEN_MODE_DOWN | PWM_GEN_MODE_DBG_RUN
     }
 };
 
 const PWM_Config PWM_config[] = {
-    {
-        .fxnTablePtr = &PWMTiva_fxnTable,
-        .object = &pwmTivaObjects[0],
-        .hwAttrs = &pwmTivaHWAttrs[0]
-    },
+    {&PWMTiva_fxnTable, &pwmTivaObjects[0], &pwmTivaHWAttrs[0]},
     {NULL, NULL, NULL}
 };
 
@@ -466,46 +459,40 @@ void EK_TM4C1294XL_initPWM(void)
 #include <ti/drivers/SDSPI.h>
 #include <ti/drivers/sdspi/SDSPITiva.h>
 
+/* SDSPI objects */
 SDSPITiva_Object sdspiTivaObjects[EK_TM4C1294XL_SDSPICOUNT];
 
+/* SDSPI configuration structure, describing which pins are to be used */
 const SDSPITiva_HWAttrs sdspiTivaHWattrs[EK_TM4C1294XL_SDSPICOUNT] = {
     {
-        .baseAddr = SSI2_BASE,
+        SSI2_BASE,          /* SPI base address */
 
-        .portSCK = GPIO_PORTD_BASE,
-        .pinSCK = GPIO_PIN_3,
-        .portMISO = GPIO_PORTD_BASE,
-        .pinMISO = GPIO_PIN_0,
-        .portMOSI = GPIO_PORTD_BASE,
-        .pinMOSI = GPIO_PIN_1,
-        .portCS = GPIO_PORTC_BASE,
-        .pinCS = GPIO_PIN_7,
+        GPIO_PORTD_BASE,    /* SPI SCK PORT */
+        GPIO_PIN_3,         /* SCK PIN */
+        GPIO_PORTD_BASE,    /* SPI MISO PORT*/
+        GPIO_PIN_0,         /* MISO PIN */
+        GPIO_PORTD_BASE,    /* SPI MOSI PORT */
+        GPIO_PIN_1,         /* MOSI PIN */
+        GPIO_PORTH_BASE,    /* GPIO CS PORT */
+        GPIO_PIN_2,         /* CS PIN */
     },
     {
-        .baseAddr = SSI3_BASE,
+        SSI3_BASE,          /* SPI base address */
 
-        .portSCK = GPIO_PORTQ_BASE,
-        .pinSCK = GPIO_PIN_0,
-        .portMISO = GPIO_PORTQ_BASE,
-        .pinMISO = GPIO_PIN_3,
-        .portMOSI = GPIO_PORTQ_BASE,
-        .pinMOSI = GPIO_PIN_2,
-        .portCS = GPIO_PORTP_BASE,
-        .pinCS = GPIO_PIN_4,
+        GPIO_PORTQ_BASE,    /* SPI SCK PORT */
+        GPIO_PIN_0,         /* SCK PIN */
+        GPIO_PORTQ_BASE,    /* SPI MISO PORT*/
+        GPIO_PIN_3,         /* MISO PIN */
+        GPIO_PORTQ_BASE,    /* SPI MOSI PORT */
+        GPIO_PIN_2,         /* MOSI PIN */
+        GPIO_PORTP_BASE,    /* GPIO CS PORT */
+        GPIO_PIN_4,         /* CS PIN */
     }
 };
 
 const SDSPI_Config SDSPI_config[] = {
-    {
-        .fxnTablePtr = &SDSPITiva_fxnTable,
-        .object = &sdspiTivaObjects[0],
-        .hwAttrs = &sdspiTivaHWattrs[0]
-    },
-    {
-        .fxnTablePtr = &SDSPITiva_fxnTable,
-        .object = &sdspiTivaObjects[1],
-        .hwAttrs = &sdspiTivaHWattrs[1]
-    },
+    {&SDSPITiva_fxnTable, &sdspiTivaObjects[0], &sdspiTivaHWattrs[0]},
+    {&SDSPITiva_fxnTable, &sdspiTivaObjects[1], &sdspiTivaHWattrs[1]},
     {NULL, NULL, NULL}
 };
 
@@ -527,8 +514,8 @@ void EK_TM4C1294XL_initSDSPI(void)
                      GPIO_PIN_0,
                      GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD_WPU);
 
-    GPIOPadConfigSet(GPIO_PORTC_BASE,
-                     GPIO_PIN_7,
+    GPIOPadConfigSet(GPIO_PORTH_BASE,
+                     GPIO_PIN_2,
                      GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
 
     GPIOPinConfigure(GPIO_PD3_SSI2CLK);
@@ -578,8 +565,8 @@ void EK_TM4C1294XL_initSDSPI(void)
 #include <ti/drivers/SPI.h>
 #include <ti/drivers/spi/SPITivaDMA.h>
 
+/* SPI objects */
 SPITivaDMA_Object spiTivaDMAObjects[EK_TM4C1294XL_SPICOUNT];
-
 #if defined(__TI_COMPILER_VERSION__)
 #pragma DATA_ALIGN(spiTivaDMAscratchBuf, 32)
 #elif defined(__IAR_SYSTEMS_ICC__)
@@ -589,44 +576,45 @@ __attribute__ ((aligned (32)))
 #endif
 uint32_t spiTivaDMAscratchBuf[EK_TM4C1294XL_SPICOUNT];
 
+/* SPI configuration structure */
 const SPITivaDMA_HWAttrs spiTivaDMAHWAttrs[EK_TM4C1294XL_SPICOUNT] = {
-    {
-        .baseAddr = SSI2_BASE,
-        .intNum = INT_SSI2,
-        .intPriority = (~0),
-        .scratchBufPtr = &spiTivaDMAscratchBuf[0],
-        .defaultTxBufValue = 0,
-        .rxChannelIndex = UDMA_SEC_CHANNEL_UART2RX_12,
-        .txChannelIndex = UDMA_SEC_CHANNEL_UART2TX_13,
-        .channelMappingFxn = uDMAChannelAssign,
-        .rxChannelMappingFxnArg = UDMA_CH12_SSI2RX,
-        .txChannelMappingFxnArg = UDMA_CH13_SSI2TX
+#if SSIM_2
+  {
+        SSI2_BASE,
+        INT_SSI2,
+        ~0,         /* Interrupt priority */
+        &spiTivaDMAscratchBuf[0],
+        0,
+        UDMA_SEC_CHANNEL_UART2RX_12,
+        UDMA_SEC_CHANNEL_UART2TX_13,
+        uDMAChannelAssign,
+        UDMA_CH12_SSI2RX,
+        UDMA_CH13_SSI2TX
     },
+#endif
+#if SSIM_3
     {
-        .baseAddr = SSI3_BASE,
-        .intNum = INT_SSI3,
-        .intPriority = (~0),
-        .scratchBufPtr = &spiTivaDMAscratchBuf[1],
-        .defaultTxBufValue = 0,
-        .rxChannelIndex = UDMA_SEC_CHANNEL_TMR2A_14,
-        .txChannelIndex = UDMA_SEC_CHANNEL_TMR2B_15,
-        .channelMappingFxn = uDMAChannelAssign,
-        .rxChannelMappingFxnArg = UDMA_CH14_SSI3RX,
-        .txChannelMappingFxnArg = UDMA_CH15_SSI3TX
+        SSI3_BASE,
+        INT_SSI3,
+        ~0,         /* Interrupt priority */
+        &spiTivaDMAscratchBuf[1],
+        0,
+        UDMA_SEC_CHANNEL_TMR2A_14,
+        UDMA_SEC_CHANNEL_TMR2B_15,
+        uDMAChannelAssign,
+        UDMA_CH14_SSI3RX,
+        UDMA_CH15_SSI3TX
     }
+#endif
 };
 
 const SPI_Config SPI_config[] = {
-    {
-        .fxnTablePtr = &SPITivaDMA_fxnTable,
-        .object = &spiTivaDMAObjects[0],
-        .hwAttrs = &spiTivaDMAHWAttrs[0]
-    },
-    {
-        .fxnTablePtr = &SPITivaDMA_fxnTable,
-        .object = &spiTivaDMAObjects[1],
-        .hwAttrs = &spiTivaDMAHWAttrs[1]
-    },
+#if SSIM_2
+    {&SPITivaDMA_fxnTable, &spiTivaDMAObjects[EK_TM4C1294XL_SPI2], &spiTivaDMAHWAttrs[EK_TM4C1294XL_SPI2]},
+#endif
+#if SSIM_3
+    {&SPITivaDMA_fxnTable, &spiTivaDMAObjects[EK_TM4C1294XL_SPI3], &spiTivaDMAHWAttrs[EK_TM4C1294XL_SPI3]},
+#endif
     {NULL, NULL, NULL}
 };
 
@@ -642,27 +630,31 @@ void EK_TM4C1294XL_initSPI(void)
      * an application.  Modify the pin mux settings in this file and resolve the
      * conflict before running your the application.
      */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
+#if SSIM_2
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
 
-    GPIOPinConfigure(GPIO_PD3_SSI2CLK);
-    GPIOPinConfigure(GPIO_PD2_SSI2FSS);
-    GPIOPinConfigure(GPIO_PD1_SSI2XDAT0);
-    GPIOPinConfigure(GPIO_PD0_SSI2XDAT1);
+  GPIOPinConfigure(GPIO_PD3_SSI2CLK);
+  GPIOPinConfigure(GPIO_PD2_SSI2FSS);
+  GPIOPinConfigure(GPIO_PD1_SSI2XDAT0);
+  GPIOPinConfigure(GPIO_PD0_SSI2XDAT1);
 
-    GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1 |
-                                    GPIO_PIN_2 | GPIO_PIN_3);
+  GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1 |
+                                   GPIO_PIN_2 | GPIO_PIN_3);
 
-    /* SSI3 */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI3);
+#endif
+#if SSIM_3
+  /* SSI3 */
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI3);
 
-    GPIOPinConfigure(GPIO_PQ0_SSI3CLK);
-    GPIOPinConfigure(GPIO_PQ1_SSI3FSS);
-    GPIOPinConfigure(GPIO_PQ2_SSI3XDAT0);
-    GPIOPinConfigure(GPIO_PQ3_SSI3XDAT1);
+  GPIOPinConfigure(GPIO_PQ0_SSI3CLK);
+  GPIOPinConfigure(GPIO_PQ1_SSI3FSS);
+  GPIOPinConfigure(GPIO_PQ2_SSI3XDAT0);
+  GPIOPinConfigure(GPIO_PQ3_SSI3XDAT1);
 
-    GPIOPinTypeSSI(GPIO_PORTQ_BASE, GPIO_PIN_0 | GPIO_PIN_1 |
-                                    GPIO_PIN_2 | GPIO_PIN_3);
+  GPIOPinTypeSSI(GPIO_PORTQ_BASE, GPIO_PIN_0 | GPIO_PIN_1 |
+                                   GPIO_PIN_2 | GPIO_PIN_3);
 
+#endif
     EK_TM4C1294XL_initDMA();
     SPI_init();
 }
@@ -680,49 +672,53 @@ void EK_TM4C1294XL_initSPI(void)
 #if TI_DRIVERS_UART_DMA
 #include <ti/drivers/uart/UARTTivaDMA.h>
 
+/* UART objects using DMA */
 UARTTivaDMA_Object uartTivaObjects[EK_TM4C1294XL_UARTCOUNT];
 
+/* UART DMA configuration structure */
 const UARTTivaDMA_HWAttrs uartTivaHWAttrs[EK_TM4C1294XL_UARTCOUNT] = {
-    {
-        .baseAddr = UART0_BASE,
-        .intNum = INT_UART0,
-        .intPriority = (~0),
-        .rxChannelIndex = UDMA_CH8_UART0RX,
-        .txChannelIndex = UDMA_CH9_UART0TX,
+    {/* EK_TM4C1294XL_UART0 */
+        UART0_BASE,
+        INT_UART0,
+        ~0,        /* Interrupt priority */
+        UDMA_CH8_UART0RX,
+        UDMA_CH9_UART0TX,
     }
 };
 
 const UART_Config UART_config[] = {
     {
-        .fxnTablePtr = &UARTTivaDMA_fxnTable,
-        .object = &uartTivaObjects[0],
-        .hwAttrs = &uartTivaHWAttrs[0]
+        &UARTTivaDMA_fxnTable,
+        &uartTivaObjects[0],
+        &uartTivaHWAttrs[0]
     },
     {NULL, NULL, NULL}
 };
+
 #else
 #include <ti/drivers/uart/UARTTiva.h>
 
+/* UART objects */
 UARTTiva_Object uartTivaObjects[EK_TM4C1294XL_UARTCOUNT];
-unsigned char uartTivaRingBuffer[EK_TM4C1294XL_UARTCOUNT][32];
+unsigned char uartTivaRingBuffer[32];
 
 /* UART configuration structure */
 const UARTTiva_HWAttrs uartTivaHWAttrs[EK_TM4C1294XL_UARTCOUNT] = {
-    {
+    {/* EK_TM4C1294XL_UART0 */
         .baseAddr = UART0_BASE,
         .intNum = INT_UART0,
-        .intPriority = (~0),
+        .intPriority = ~0,
         .flowControl = UART_FLOWCONTROL_NONE,
-        .ringBufPtr  = uartTivaRingBuffer[0],
-        .ringBufSize = sizeof(uartTivaRingBuffer[0])
+        .ringBufPtr  = uartTivaRingBuffer,
+        .ringBufSize = sizeof(uartTivaRingBuffer)
     }
 };
 
 const UART_Config UART_config[] = {
     {
-        .fxnTablePtr = &UARTTiva_fxnTable,
-        .object = &uartTivaObjects[0],
-        .hwAttrs = &uartTivaHWAttrs[0]
+        &UARTTiva_fxnTable,
+        &uartTivaObjects[0],
+        &uartTivaHWAttrs[0]
     },
     {NULL, NULL, NULL}
 };
@@ -808,20 +804,19 @@ void EK_TM4C1294XL_initUSB(EK_TM4C1294XL_USBMode usbMode)
 #include <ti/drivers/USBMSCHFatFs.h>
 #include <ti/drivers/usbmschfatfs/USBMSCHFatFsTiva.h>
 
+/* USBMSCHFatFs objects */
 USBMSCHFatFsTiva_Object usbmschfatfstivaObjects[EK_TM4C1294XL_USBMSCHFatFsCOUNT];
 
+/* USBMSCHFatFs configuration structure, describing which pins are to be used */
 const USBMSCHFatFsTiva_HWAttrs usbmschfatfstivaHWAttrs[EK_TM4C1294XL_USBMSCHFatFsCOUNT] = {
-    {
-        .intNum = INT_USB0,
-        .intPriority = (~0)
-    }
+    {INT_USB0, ~0 /* Interrupt priority */}
 };
 
 const USBMSCHFatFs_Config USBMSCHFatFs_config[] = {
     {
-        .fxnTablePtr = &USBMSCHFatFsTiva_fxnTable,
-        .object = &usbmschfatfstivaObjects[0],
-        .hwAttrs = &usbmschfatfstivaHWAttrs[0]
+        &USBMSCHFatFsTiva_fxnTable,
+        &usbmschfatfstivaObjects[0],
+        &usbmschfatfstivaHWAttrs[0]
     },
     {NULL, NULL, NULL}
 };
@@ -851,23 +846,22 @@ void EK_TM4C1294XL_initUSBMSCHFatFs(void)
 #include <ti/drivers/Watchdog.h>
 #include <ti/drivers/watchdog/WatchdogTiva.h>
 
+/* Watchdog objects */
 WatchdogTiva_Object watchdogTivaObjects[EK_TM4C1294XL_WATCHDOGCOUNT];
 
+/* Watchdog configuration structure */
 const WatchdogTiva_HWAttrs watchdogTivaHWAttrs[EK_TM4C1294XL_WATCHDOGCOUNT] = {
+    /* EK_TM4C1294XL_WATCHDOG0 with 1 sec period at default CPU clock freq */
     {
-        .baseAddr = WATCHDOG0_BASE,
-        .intNum = INT_WATCHDOG,
-        .intPriority = (~0),
-        .reloadValue = 80000000 // 1 second period at default CPU clock freq
+        WATCHDOG0_BASE,
+        INT_WATCHDOG,
+        ~0,           /* Interrupt priority */
+        80000000
     },
 };
 
 const Watchdog_Config Watchdog_config[] = {
-    {
-        .fxnTablePtr = &WatchdogTiva_fxnTable,
-        .object = &watchdogTivaObjects[0],
-        .hwAttrs = &watchdogTivaHWAttrs[0]
-    },
+    {&WatchdogTiva_fxnTable, &watchdogTivaObjects[0], &watchdogTivaHWAttrs[0]},
     {NULL, NULL, NULL},
 };
 
@@ -890,6 +884,7 @@ void EK_TM4C1294XL_initWatchdog(void)
     /* Enable peripherals used by Watchdog */
     SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
 
+    /* Initialize the Watchdog driver */
     Watchdog_init();
 }
 
@@ -905,27 +900,29 @@ void EK_TM4C1294XL_initWatchdog(void)
 #include <ti/drivers/WiFi.h>
 #include <ti/drivers/wifi/WiFiCC3100.h>
 
+/* WiFi objects */
 WiFiCC3100_Object wiFiCC3100Objects[EK_TM4C1294XL_WIFICOUNT];
 
+/* WiFi configuration structure */
 const WiFiCC3100_HWAttrs wiFiCC3100HWAttrs[EK_TM4C1294XL_WIFICOUNT] = {
     {
-        .irqPort = GPIO_PORTM_BASE,
-        .irqPin = GPIO_PIN_3,
-        .irqIntNum = INT_GPIOM,
+        GPIO_PORTM_BASE, /* IRQ port */
+        GPIO_PIN_3,      /* IRQ pin */
+        INT_GPIOM,       /* IRQ port interrupt vector */
 
-        .csPort = GPIO_PORTH_BASE,
-        .csPin = GPIO_PIN_2,
+        GPIO_PORTH_BASE, /* CS port */
+        GPIO_PIN_2,      /* CS pin */
 
-        .enPort = GPIO_PORTC_BASE,
-        .enPin = GPIO_PIN_6
+        GPIO_PORTC_BASE, /* WLAN EN port */
+        GPIO_PIN_6       /* WLAN EN pin */
     }
 };
 
 const WiFi_Config WiFi_config[] = {
     {
-        .fxnTablePtr = &WiFiCC3100_fxnTable,
-        .object = &wiFiCC3100Objects[0],
-        .hwAttrs = &wiFiCC3100HWAttrs[0]
+        &WiFiCC3100_fxnTable,
+        &wiFiCC3100Objects[0],
+        &wiFiCC3100HWAttrs[0]
     },
     {NULL,NULL, NULL},
 };
