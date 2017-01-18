@@ -22,4 +22,5 @@ Prerequisites
 - [uniflash >= 4.1](http://www.ti.com/tool/UNIFLASH)
 
 Documentation
+- [TI-RTOS User's Guide](http://www.ti.com/lit/ug/spruhd4m/spruhd4m.pdf)
 - [SYS/BIOS (TI-RTOS Kernel) User's Guide](http://www.ti.com/lit/ug/spruex3q/spruex3q.pdf)
