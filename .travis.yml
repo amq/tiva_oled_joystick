@@ -38,3 +38,12 @@ install:
 
 script:
   - make
+
+deploy:
+  provider: releases
+  api_key:
+    secure: TdugPJfpq3WcDV6UykIh5GPfB6gFOTMf4NNaee3/VpcdiiO9O2Yrrtw41UcRN6FtvMVB1cxj3A5EzDF3NwzfSC+LZTYU8aVJgUVh3Le8RgMnK4Vy+OYAjTN39ve4+Z2zkmELapmvROjhjnZl7X1MiPn7iiP209VSaNxFR6z5KDz6TmacoE8uqRGXSotE6sPVMEROIT9WKRj5H9/04aMcVDay+wK9Jwqw9ZloFvQPC2DaCxZ+424vFrBCEuBamqlQyxp6t9DiU/OpUD6SabAdEvirf69hR9o4mBf7y2R6iS2Wnh85pgJgDEdhs2NjfGtAoOqXPp6OQkR5E+rAdw0Tn8RR0jQ3s5dgff2blngDv7jC5ScXjc8VQN5V2r8Wy6g+lZWUh9xwE8G5ZOUFgvIn6TEcplFb6yGknIzdTcVT7DlYKvzMj/ZeiSIH9lzZOdxQY8Sn/kvxhSQLx+QLVDn+1p0hPkSrHzDWL4jcALBzxHxYJY8v2wBuBTKTJD2bPw5sdkD5bFAxTL92IRvIU/GWvyAmANR4/Q0erIvKe9jMpiJ+VSoYaajR/k+EuVLFdmNpWFFqiSMLA0Zyh2Dejcfk6rVwqVGv4qyyPn+MMc4Qa+pdsaPJdsqqM7BMkStzzGZEUQGYdBv88r2HrLQ0VN/dk8wIv7SEgJ4Lr6mSH8QUGzg=
+  file: tiva_oled_joystick.out
+  skip_cleanup: true
+  on:
+    tags: true
