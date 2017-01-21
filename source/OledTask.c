@@ -12,8 +12,10 @@ static void OledInit(void);
 static void OledCommand(uint16_t command, uint16_t data);
 static void OledData(uint16_t data);
 static void OledDdramAccess(void);
-static void OledMemorySize(uint16_t X1, uint16_t X2, uint16_t Y1, uint16_t Y2);
-static void OledColor(uint16_t color, uint16_t X1, uint16_t X2, uint16_t Y1, uint16_t Y2);
+static void OledMemorySize(int16_t x1, int16_t x2, int16_t y1, int16_t y2);
+static void OledColor(uint16_t color, int16_t x1, int16_t x2, int16_t y1, int16_t y2);
+static void OledImage(uint16_t *data, int16_t x1, int16_t x2, int16_t y1, int16_t y2);
+static void OledBuffer(uint16_t color, uint16_t size);
 static void OledClear(uint16_t color);
 
 /*
@@ -44,7 +46,7 @@ void OledTask_init(Mailbox_Handle mailboxHandle) {
  */
 static void OledTaskFxn(UArg arg0, UArg arg1) {
   int8_t coordinates[2];
-  int8_t x1, x2, y1, y2;
+  int16_t x1, x2, y1, y2;
 
   SPI_Params_init(&spiParams);
   spiParams.bitRate = 30 * 1000 * 1000;
@@ -57,23 +59,20 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
 
   OledInit();
 
-  /* draw an image */
-  OledMemorySize(0, 95, 0, 95);
-  OledDdramAccess();
-  for (int i = 0; i < 9216; i++) {
-    OledData(image_data_hal[i]);
-  }
+  OledClear(BACKGROUND);
 
+  /* draw the boot image */
+  OledImage(image_hal, 0, 95, 0, 95);
   Task_sleep(2000);
 
   OledClear(BACKGROUND);
 
-  /* draw a square */
+  /* draw the object */
   x1 = START_X1;
   x2 = START_X2;
   y1 = START_Y1;
   y2 = START_Y2;
-  OledColor(COLOR, x1, x2, y1, y2);
+  OledImage(image_bounce, x1, x2, y1, y2);
 
   while (1) {
     if (Mailbox_pend((Mailbox_Handle)arg0, coordinates, BIOS_WAIT_FOREVER)) {
@@ -84,11 +83,10 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         x1 = x1 + SPEED;
         x2 = x2 + SPEED;
         if (x1 > 95 || x2 > 95) {
-          OledClear(BACKGROUND);
           x1 = 0;
           x2 = START_X2 - START_X1;
         }
-        OledColor(COLOR, x1, x2, y1, y2);
+        OledImage(image_bounce, x1, x2, y1, y2);
       }
 
       /* right */
@@ -97,11 +95,10 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         x1 = x1 - SPEED;
         x2 = x2 - SPEED;
         if (x1 < 0 || x2 < 0) {
-          OledClear(BACKGROUND);
           x1 = START_X1;
           x2 = START_X2;
         }
-        OledColor(COLOR, x1, x2, y1, y2);
+        OledImage(image_bounce, x1, x2, y1, y2);
       }
 
       /* down */
@@ -110,11 +107,10 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         y1 = y1 + SPEED;
         y2 = y2 + SPEED;
         if (y1 > 95 || y2 > 95) {
-          OledClear(BACKGROUND);
           y1 = 0;
           y2 = START_X2 - START_X1;
         }
-        OledColor(COLOR, x1, x2, y1, y2);
+        OledImage(image_bounce, x1, x2, y1, y2);
       }
 
       /* up */
@@ -123,11 +119,10 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         y1 = y1 - SPEED;
         y2 = y2 - SPEED;
         if (y1 < 0 || y2 < 0) {
-          OledClear(BACKGROUND);
           y1 = START_X1;
           y2 = START_X2;
         }
-        OledColor(COLOR, x1, x2, y1, y2);
+        OledImage(image_bounce, x1, x2, y1, y2);
       }
     }
   }
@@ -143,7 +138,6 @@ static void SpiWrite(uint16_t data) {
   spiTransaction.count = 1;
   spiTransaction.txBuf = &data;
   spiTransaction.rxBuf = NULL;
-
   (void)SPI_transfer(spiHandle, &spiTransaction);
 }
 
@@ -158,15 +152,15 @@ static void OledInit(void) {
 
   GPIOPinWrite(GPIO_OLED_BASE_RW, GPIO_OLED_PIN_RW, 0);
   GPIOPinWrite(GPIO_OLED_BASE_RST, GPIO_OLED_PIN_RST, 0);
-  Task_sleep(10);
+  Task_sleep(20);
   GPIOPinWrite(GPIO_OLED_BASE_RST, GPIO_OLED_PIN_RST, GPIO_OLED_PIN_RST);
-  Task_sleep(10);
+  Task_sleep(20);
 
   OledCommand(SEPS114A_SOFT_RESET, 0x00);
   OledCommand(SEPS114A_STANDBY_ON_OFF, 0x01);
-  Task_sleep(5);
+  Task_sleep(20);
   OledCommand(SEPS114A_STANDBY_ON_OFF, 0x00);
-  Task_sleep(5);
+  Task_sleep(20);
   OledCommand(SEPS114A_DISPLAY_ON_OFF, 0x00);
   OledCommand(SEPS114A_ANALOG_CONTROL, 0x40);
   OledCommand(SEPS114A_OSC_ADJUST, 0x03);
@@ -245,65 +239,98 @@ static void OledDdramAccess(void) {
 /*
  * @brief sets the output region
  *
- * @param x1 the left boarder
- * @param x2 the right boarder
- * @param y1 the bottom boarder
- * @param y2 the top boarder
+ * @param x1 the left border
+ * @param x2 the right border
+ * @param y1 the bottom border
+ * @param y2 the top border
  */
-static void OledMemorySize(uint16_t X1, uint16_t X2, uint16_t Y1, uint16_t Y2) {
-  OledCommand(SEPS114A_MEM_X1, X1);
-  OledCommand(SEPS114A_MEM_X2, X2);
-  OledCommand(SEPS114A_MEM_Y1, Y1);
-  OledCommand(SEPS114A_MEM_Y2, Y2);
+static void OledMemorySize(int16_t x1, int16_t x2, int16_t y1, int16_t y2) {
+  OledCommand(SEPS114A_MEM_X1, x1);
+  OledCommand(SEPS114A_MEM_X2, x2);
+  OledCommand(SEPS114A_MEM_Y1, y1);
+  OledCommand(SEPS114A_MEM_Y2, y2);
 }
 
 /*
- * @param fast solid color output
+ * @brief universal buffer to write data in chunks
  *
  * @param color the color in R5G6B5
- * @param x1 the left boarder
- * @param x2 the right boarder
- * @param y1 the bottom boarder
- * @param y2 the top boarder
+ * @param size the total count to be written
  */
-static void OledColor(uint16_t color, uint16_t X1, uint16_t X2, uint16_t Y1, uint16_t Y2) {
+static void OledBuffer(uint16_t color, uint16_t size) {
   static uint16_t buffer[1024];
-  int size = (X2 - X1 + 1) * (Y2 - Y1 + 1);
-  int slice;
+  static uint16_t cur = 0;
+  static uint16_t total = 0;
+  uint16_t flush = 0;
 
-  SPI_Transaction spiTransaction;
-  spiTransaction.txBuf = buffer;
-  spiTransaction.rxBuf = NULL;
+  buffer[cur] = color;
+  cur++;
+  total++;
 
-  OledMemorySize(X1, X2, Y1, Y2);
-  OledDdramAccess();
-
-  for (int i = 0; i < 1024; i++) {
-    buffer[i] = color;
+  if (cur >= 1024) {
+    flush = 1;
   }
 
-  do {
-    slice = size - 1024;
+  if (total >= size) {
+    total = 0;
+    flush = 1;
+  }
 
-    if (slice >= 1024) {
-      spiTransaction.count = 1024;
-      size = slice;
-    }
-    else {
-      spiTransaction.count = size;
-    }
-
+  if (flush == 1) {
+    SPI_Transaction spiTransaction;
+    spiTransaction.count = cur;
+    spiTransaction.txBuf = buffer;
+    spiTransaction.rxBuf = NULL;
     GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
     GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, GPIO_OLED_PIN_DC);
     (void)SPI_transfer(spiHandle, &spiTransaction);
     GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
-
+    cur = 0;
   }
-  while (slice > 0);
 }
 
 /*
- * @brief fills the display with a solid color
+ * @brief fills the specified area with a solid color
+ *
+ * @param color the color in R5G6B5
+ * @param x1 the left border
+ * @param x2 the right border
+ * @param y1 the bottom border
+ * @param y2 the top border
+ */
+static void OledColor(uint16_t color, int16_t x1, int16_t x2, int16_t y1, int16_t y2) {
+  uint16_t size = (x2 - x1 + 1) * (y2 - y1 + 1);
+
+  OledMemorySize(x1, x2, y1, y2);
+  OledDdramAccess();
+
+  for (int i = 0; i < size; i++) {
+    OledBuffer(color, size);
+  }
+}
+
+/*
+ * @brief fills the specified area with data from array
+ *
+ * @param color the color in R5G6B5
+ * @param x1 the left border
+ * @param x2 the right border
+ * @param y1 the bottom border
+ * @param y2 the top border
+ */
+static void OledImage(uint16_t *data, int16_t x1, int16_t x2, int16_t y1, int16_t y2) {
+  uint16_t size = (x2 - x1 + 1) * (y2 - y1 + 1);
+
+  OledMemorySize(x1, x2, y1, y2);
+  OledDdramAccess();
+
+  for (int i = 0; i < size; i++) {
+    OledBuffer(data[i], size);
+  }
+}
+
+/*
+ * @brief fills the whole display with a solid color
  *
  * @param color the color in R5G6B5
  */

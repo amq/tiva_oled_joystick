@@ -6,7 +6,6 @@
 #define START_X2 95
 #define START_Y1 80
 #define START_Y2 95
-#define COLOR 0x00FF
 #define BACKGROUND 0x0000
 
 #ifdef SSIM_2
