@@ -1,5 +1,14 @@
 #pragma once
 
+#define SPEED 2
+#define SENSITIVITY 12
+#define START_X1 80
+#define START_X2 95
+#define START_Y1 80
+#define START_Y2 95
+#define COLOR 0x00FF
+#define BACKGROUND 0x0000
+
 #ifdef SSIM_2
 #define SPI_DESC Board_SPI0
 #define GPIO_OLED_BASE_DC GPIO_PORTM_BASE
