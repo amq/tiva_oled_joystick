@@ -1,14 +1,26 @@
 #include "Common.h"
 #include "OledTask.h"
+#include "OledTaskImages.h"
+#include "OledTaskFont.h"
+
+#define SPEED 2
+#define SENSITIVITY 12
+#define START_X1 80
+#define START_X2 95
+#define START_Y1 80
+#define START_Y2 95
+
+static SPI_Handle spiHandle;
+static SPI_Params spiParams;
 
 static void OledTaskFxn(UArg arg0, UArg arg1);
-static void SpiWrite(uint8_t data);
+static void SpiWrite(uint16_t data);
 static void OledInit(void);
-static void OledCommand(uint8_t command, uint8_t data);
-static void OledData(uint8_t data);
+static void OledCommand(uint16_t command, uint16_t data);
+static void OledData(uint16_t data);
 static void OledDdramAccess(void);
-static void OledMemorySize(uint8_t X1, uint8_t X2, uint8_t Y1, uint8_t Y2);
-static void OledColor(uint8_t colorMSB, uint8_t colorLSB);
+static void OledMemorySize(uint16_t X1, uint16_t X2, uint16_t Y1, uint16_t Y2);
+static void OledColor(uint16_t color, uint16_t X1, uint16_t X2, uint16_t Y1, uint16_t Y2);
 static void OledClearWhite(void);
 static void OledClearBlack(void);
 
@@ -19,7 +31,7 @@ void OledTask_init(Mailbox_Handle mailboxHandle) {
 
   Error_init(&eb);
   Task_Params_init(&taskParams);
-  taskParams.stackSize = 1024;
+  taskParams.stackSize = 2048;
   taskParams.priority = 10;
   taskParams.arg0 = (UArg)mailboxHandle;
   taskHandle = Task_create((Task_FuncPtr)OledTaskFxn, &taskParams, &eb);
@@ -31,82 +43,93 @@ void OledTask_init(Mailbox_Handle mailboxHandle) {
 
 static void OledTaskFxn(UArg arg0, UArg arg1) {
   int8_t coordinates[2];
-  int8_t x1 = 75;
-  int8_t x2 = 95;
-  int8_t y1 = 75;
-  int8_t y2 = 95;
+  int8_t x1, x2, y1, y2;
+
+  SPI_Params_init(&spiParams);
+  spiParams.bitRate = 30*1000*1000;
+  spiParams.dataSize = 16;
+  spiHandle = SPI_open(SPI_DESC, &spiParams);
+
+  if (spiHandle == NULL) {
+    System_abort("SPI open failed\n");
+  }
 
   OledInit();
-  OledClearBlack();
 
-  Task_sleep(1000);
-
-  OledClearWhite();
-
-  Task_sleep(1000);
-
-  OledClearBlack();
-
-  /* Draw a square */
-  OledMemorySize(x1, x2, y1, y2);
+  OledMemorySize(0, 95, 0, 95);
   OledDdramAccess();
-  for (int i = 0; i < 1900; i++) {
-    OledColor(0x00, 0xFF);
+  for (int i = 0; i < 9216; i++) {
+    OledData(image_data_hal[i]);
   }
+
+  Task_sleep(2000);
+
+  OledClearBlack();
+
+  /* draw a square */
+  x1 = START_X1; x2 = START_X2; y1 = START_Y1; y2 = START_Y2;
+  OledColor(0x00FF, x1, x2, y1, y2);
 
   while (1) {
     if (Mailbox_pend((Mailbox_Handle)arg0, coordinates, BIOS_WAIT_FOREVER)) {
 
-      /* Move the square left */
-      if (coordinates[0] > 10) {
-        for (int i = 0; i < 1900; i++) {
-          OledColor(0x00, 0x00);
+      /* left */
+      if (coordinates[0] > SENSITIVITY) {
+        OledColor(0x0000, x1, x2, y1, y2);
+        x1 = x1 + SPEED;
+        x2 = x2 + SPEED;
+        if (x1 > 95 || x2 > 95) {
+          OledClearBlack();
+          x1 = 0;
+          x2 = START_X2 - START_X1;
         }
-
-        x1 = x1 + 10;
-        x2 = x2 + 10;
-
-        OledMemorySize(x1, x2, y1, y2);
-        OledDdramAccess();
-        for (int i = 0; i < 1900; i++) {
-          OledColor(0x00, 0xFF);
-        }
+        OledColor(0x00FF, x1, x2, y1, y2);
       }
 
-      /* Move the square right */
-      if (coordinates[0] < -10) {
-        for (int i = 0; i < 1900; i++) {
-          OledColor(0x00, 0x00);
+      /* right */
+      if (coordinates[0] < -SENSITIVITY) {
+        OledColor(0x0000, x1, x2, y1, y2);
+        x1 = x1 - SPEED;
+        x2 = x2 - SPEED;
+        if (x1 < 0 || x2 < 0) {
+          OledClearBlack();
+          x1 = START_X1;
+          x2 = START_X2;
         }
+        OledColor(0x00FF, x1, x2, y1, y2);
+      }
 
-        x1 = x1 - 10;
-        x2 = x2 - 10;
-
-        OledMemorySize(x1, x2, y1, y2);
-        OledDdramAccess();
-        for (int i = 0; i < 1900; i++) {
-          OledColor(0x00, 0xFF);
+      /* down */
+      if (coordinates[1] < -SENSITIVITY) {
+        OledColor(0x0000, x1, x2, y1, y2);
+        y1 = y1 + SPEED;
+        y2 = y2 + SPEED;
+        if (y1 > 95 || y2 > 95) {
+          OledClearBlack();
+          y1 = 0;
+          y2 = START_X2 - START_X1;
         }
+        OledColor(0x00FF, x1, x2, y1, y2);
+      }
+
+      /* up */
+      if (coordinates[1] > SENSITIVITY) {
+        OledColor(0x0000, x1, x2, y1, y2);
+        y1 = y1 - SPEED;
+        y2 = y2 - SPEED;
+        if (y1 < 0 || y2 < 0) {
+          OledClearBlack();
+          y1 = START_X1;
+          y2 = START_X2;
+        }
+        OledColor(0x00FF, x1, x2, y1, y2);
       }
     }
   }
 }
 
-static void SpiWrite(uint8_t data) {
-  static SPI_Handle spiHandle = NULL;
+static void SpiWrite(uint16_t data) {
   SPI_Transaction spiTransaction;
-
-  if (spiHandle == NULL) {
-    SPI_Params spiParams;
-    SPI_Params_init(&spiParams);
-    spiParams.bitRate = 30*1000*1000;
-    spiHandle = SPI_open(SPI_DESC, &spiParams);
-
-    if (spiHandle == NULL) {
-      System_abort("SPI open failed\n");
-    }
-  }
-
   spiTransaction.count = 1;
   spiTransaction.txBuf = &data;
   spiTransaction.rxBuf = NULL;
@@ -141,7 +164,7 @@ static void OledInit(void) {
   OledCommand(SEPS114A_DISPLAY_X2, 0x5F);
   OledCommand(SEPS114A_DISPLAY_Y1, 0x00);
   OledCommand(SEPS114A_DISPLAY_Y2, 0x5F);
-  OledCommand(SEPS114A_RGB_IF, 0x00);
+  OledCommand(SEPS114A_RGB_IF, 0x10);
   OledCommand(SEPS114A_RGB_POL, 0x00);
   OledCommand(SEPS114A_DISPLAY_MODE_CONTROL, 0x80);
   OledCommand(SEPS114A_CPU_IF, 0x00);
@@ -168,7 +191,7 @@ static void OledInit(void) {
   OledCommand(SEPS114A_DISPLAY_ON_OFF, 0x01);
 }
 
-static void OledCommand(uint8_t command, uint8_t data) {
+static void OledCommand(uint16_t command, uint16_t data) {
   /* select index */
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
   GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, 0);
@@ -177,11 +200,11 @@ static void OledCommand(uint8_t command, uint8_t data) {
   /* write data */
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
   GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, GPIO_OLED_PIN_DC);
-  OledData(data);
+  SpiWrite(data);
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
 }
 
-static void OledData(uint8_t data) {
+static void OledData(uint16_t data) {
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
   GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, GPIO_OLED_PIN_DC);
   SpiWrite(data);
@@ -192,33 +215,55 @@ static void OledDdramAccess(void) {
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
   GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, 0);
   SpiWrite(0x08);
-  GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 1);
+  GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
 }
 
-static void OledMemorySize(uint8_t X1, uint8_t X2, uint8_t Y1, uint8_t Y2) {
+static void OledMemorySize(uint16_t X1, uint16_t X2, uint16_t Y1, uint16_t Y2) {
   OledCommand(SEPS114A_MEM_X1, X1);
   OledCommand(SEPS114A_MEM_X2, X2);
   OledCommand(SEPS114A_MEM_Y1, Y1);
   OledCommand(SEPS114A_MEM_Y2, Y2);
 }
 
-static void OledColor(uint8_t colorMSB, uint8_t colorLSB) {
-  OledData(colorMSB);
-  OledData(colorLSB);
+
+static void OledColor(uint16_t color, uint16_t X1, uint16_t X2, uint16_t Y1, uint16_t Y2) {
+  static uint16_t buffer[1024];
+  int size = (X2 - X1 + 1) * (Y2 - Y1 + 1);
+  int slice;
+
+  SPI_Transaction spiTransaction;
+  spiTransaction.txBuf = buffer;
+  spiTransaction.rxBuf = NULL;
+
+  OledMemorySize(X1, X2, Y1, Y2);
+  OledDdramAccess();
+
+  for (int i = 0; i < 1024; i++) {
+    buffer[i] = color;
+  }
+
+  do {
+    slice = size - 1024;
+
+    if (slice >= 1024) {
+      spiTransaction.count = 1024;
+      size = slice;
+    } else {
+      spiTransaction.count = size;
+    }
+
+    GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
+    GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, GPIO_OLED_PIN_DC);
+    (void)SPI_transfer(spiHandle, &spiTransaction);
+    GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
+
+  } while (slice > 0);
 }
 
 static void OledClearWhite(void) {
-  OledMemorySize(0, 95, 0, 95);
-  OledDdramAccess();
-  for (int i = 0; i < 9216; i++) {
-    OledColor(0xFF, 0xFF);
-  }
+  OledColor(0xFFFF, 0, 95, 0, 95);
 }
 
 static void OledClearBlack(void) {
-  OledMemorySize(0, 95, 0, 95);
-  OledDdramAccess();
-  for (int i = 0; i < 9216; i++) {
-    OledColor(0x00, 0x00);
-  }
+  OledColor(0x0000, 0, 95, 0, 95);
 }
