@@ -25,6 +25,8 @@
 /* Board Header file */
 #include "local_inc/Board.h"
 
+#define CPU_FREQ 120 * 1000 * 1000
+
 #ifdef DEBUG
 #define v(fmt, ...) \
   System_printf("%s(): " fmt, __func__, __VA_ARGS__); System_flush();

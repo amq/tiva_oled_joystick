@@ -6,7 +6,7 @@ static Mailbox_Handle mailboxHandle;
 static Mailbox_Params mailboxParams;
 
 int main(void) {
-  Board_initGeneral(120 * 1000 * 1000);
+  Board_initGeneral(CPU_FREQ);
   Board_initGPIO();
   Board_initI2C();
   Board_initSPI();

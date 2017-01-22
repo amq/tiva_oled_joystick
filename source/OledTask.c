@@ -47,10 +47,8 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
 
   OledInit();
 
-  OledClear(BACKGROUND);
-
   /* draw the boot image */
-  OledImage(image_hal, 0, 95, 0, 95);
+  OledImage(image_buffer, 0, 95, 0, 95);
   Task_sleep(2000);
 
   OledClear(BACKGROUND);
@@ -125,10 +123,10 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
 static void SpiWrite(uint16_t *data, uint16_t size) {
   SPI_Handle spiHandle;
   SPI_Params spiParams;
-  int current = 0;
+  SPI_Transaction spiTransaction;
 
   SPI_Params_init(&spiParams);
-  spiParams.bitRate = 30 * 1000 * 1000;
+  spiParams.bitRate = CPU_FREQ / 4;
   spiParams.dataSize = 16;
   spiHandle = SPI_open(SPI_DESC, &spiParams);
 
@@ -136,12 +134,9 @@ static void SpiWrite(uint16_t *data, uint16_t size) {
     System_abort("SPI open failed\n");
   }
 
-  for (int total = 1; total <= size; total++) {
-    current++;
-
+  for (int current = 1, total = 1; total <= size; current++, total++) {
     if (current == 1024 || total == size) {
-      SPI_Transaction spiTransaction;
-      spiTransaction.count = current; /* max 2048 bytes is allowed */
+      spiTransaction.count = current; /* max 2048 bytes */
       spiTransaction.txBuf = &data[total - current]; /* offset */
       spiTransaction.rxBuf = NULL;
       (void)SPI_transfer(spiHandle, &spiTransaction);
