@@ -3,19 +3,16 @@
 #include "OledTaskImages.h"
 #include "OledTaskFont.h"
 
-static SPI_Handle spiHandle;
-static SPI_Params spiParams;
-
 static void OledTaskFxn(UArg arg0, UArg arg1);
-static void SpiWrite(uint16_t data);
+static void SpiWrite(uint16_t *data, uint16_t size);
 static void OledInit(void);
 static void OledCommand(uint16_t command, uint16_t data);
-static void OledData(uint16_t data);
+static void OledRegister(uint16_t command);
+static void OledData(uint16_t *data, uint16_t size);
 static void OledDdramAccess(void);
 static void OledMemorySize(int16_t x1, int16_t x2, int16_t y1, int16_t y2);
 static void OledColor(uint16_t color, int16_t x1, int16_t x2, int16_t y1, int16_t y2);
 static void OledImage(uint16_t *data, int16_t x1, int16_t x2, int16_t y1, int16_t y2);
-static void OledBuffer(uint16_t color, uint16_t size);
 static void OledClear(uint16_t color);
 
 /*
@@ -47,15 +44,6 @@ void OledTask_init(Mailbox_Handle mailboxHandle) {
 static void OledTaskFxn(UArg arg0, UArg arg1) {
   int8_t coordinates[2];
   int16_t x1, x2, y1, y2;
-
-  SPI_Params_init(&spiParams);
-  spiParams.bitRate = 30 * 1000 * 1000;
-  spiParams.dataSize = 16;
-  spiHandle = SPI_open(SPI_DESC, &spiParams);
-
-  if (spiHandle == NULL) {
-    System_abort("SPI open failed\n");
-  }
 
   OledInit();
 
@@ -129,16 +117,39 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
 }
 
 /*
- * @brief wrapper for SPI writes
+ * @brief wrapper for fast SPI writes
  *
- * @param data the data to write
+ * @param data the data to be written
+ * @param size the total count
  */
-static void SpiWrite(uint16_t data) {
-  SPI_Transaction spiTransaction;
-  spiTransaction.count = 1;
-  spiTransaction.txBuf = &data;
-  spiTransaction.rxBuf = NULL;
-  (void)SPI_transfer(spiHandle, &spiTransaction);
+static void SpiWrite(uint16_t *data, uint16_t size) {
+  SPI_Handle spiHandle;
+  SPI_Params spiParams;
+  int current = 0;
+
+  SPI_Params_init(&spiParams);
+  spiParams.bitRate = 30 * 1000 * 1000;
+  spiParams.dataSize = 16;
+  spiHandle = SPI_open(SPI_DESC, &spiParams);
+
+  if (spiHandle == NULL) {
+    System_abort("SPI open failed\n");
+  }
+
+  for (int total = 1; total <= size; total++) {
+    current++;
+
+    if (current == 1024 || total == size) {
+      SPI_Transaction spiTransaction;
+      spiTransaction.count = current; /* max 2048 bytes is allowed */
+      spiTransaction.txBuf = &data[total - current]; /* offset */
+      spiTransaction.rxBuf = NULL;
+      (void)SPI_transfer(spiHandle, &spiTransaction);
+      current = 0;
+    }
+  }
+
+  SPI_close(spiHandle);
 }
 
 /*
@@ -196,33 +207,38 @@ static void OledInit(void) {
 }
 
 /*
- * @brief writes to a register
+ * @brief wrapper for commands
  *
  * @param command the register
  * @param data the data to write
  */
 static void OledCommand(uint16_t command, uint16_t data) {
-  /* select index */
+  OledRegister(command);
+  OledData(&data, 1);
+}
+
+/*
+ * @brief selects a register
+ *
+ * @param command the register
+ */
+static void OledRegister(uint16_t command) {
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
   GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, 0);
-  SpiWrite(command);
-  GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
-  /* write data */
-  GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
-  GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, GPIO_OLED_PIN_DC);
-  SpiWrite(data);
+  SpiWrite(&command, 1);
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
 }
 
 /*
- * @brief sends plain data
+ * @brief writes data
  *
- * @param data the data to send
+ * @param data the data to write
+ * @param size the total count
  */
-static void OledData(uint16_t data) {
+static void OledData(uint16_t *data, uint16_t size) {
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
   GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, GPIO_OLED_PIN_DC);
-  SpiWrite(data);
+  SpiWrite(data, size);
   GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
 }
 
@@ -230,10 +246,7 @@ static void OledData(uint16_t data) {
  * @brief allows the DRAM to be written
  */
 static void OledDdramAccess(void) {
-  GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
-  GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, 0);
-  SpiWrite(0x08);
-  GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
+  OledRegister(SEPS114A_DDRAM_DATA_ACCESS_PORT);
 }
 
 /*
@@ -252,44 +265,6 @@ static void OledMemorySize(int16_t x1, int16_t x2, int16_t y1, int16_t y2) {
 }
 
 /*
- * @brief universal buffer to write data in chunks
- *
- * @param color the color in R5G6B5
- * @param size the total count to be written
- */
-static void OledBuffer(uint16_t color, uint16_t size) {
-  static uint16_t buffer[1024];
-  static uint16_t cur = 0;
-  static uint16_t total = 0;
-  uint16_t flush = 0;
-
-  buffer[cur] = color;
-  cur++;
-  total++;
-
-  if (cur >= 1024) {
-    flush = 1;
-  }
-
-  if (total >= size) {
-    total = 0;
-    flush = 1;
-  }
-
-  if (flush == 1) {
-    SPI_Transaction spiTransaction;
-    spiTransaction.count = cur;
-    spiTransaction.txBuf = buffer;
-    spiTransaction.rxBuf = NULL;
-    GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, 0);
-    GPIOPinWrite(GPIO_OLED_BASE_DC, GPIO_OLED_PIN_DC, GPIO_OLED_PIN_DC);
-    (void)SPI_transfer(spiHandle, &spiTransaction);
-    GPIOPinWrite(GPIO_OLED_BASE_CS, GPIO_OLED_PIN_CS, GPIO_OLED_PIN_CS);
-    cur = 0;
-  }
-}
-
-/*
  * @brief fills the specified area with a solid color
  *
  * @param color the color in R5G6B5
@@ -301,16 +276,15 @@ static void OledBuffer(uint16_t color, uint16_t size) {
 static void OledColor(uint16_t color, int16_t x1, int16_t x2, int16_t y1, int16_t y2) {
   uint16_t size = (x2 - x1 + 1) * (y2 - y1 + 1);
 
-  OledMemorySize(x1, x2, y1, y2);
-  OledDdramAccess();
-
   for (int i = 0; i < size; i++) {
-    OledBuffer(color, size);
+    image_buffer[i] = color;
   }
+
+  OledImage(image_buffer, x1, x2, y1, y2);
 }
 
 /*
- * @brief fills the specified area with data from array
+ * @brief fills the specified area with data from an array
  *
  * @param color the color in R5G6B5
  * @param x1 the left border
@@ -323,10 +297,7 @@ static void OledImage(uint16_t *data, int16_t x1, int16_t x2, int16_t y1, int16_
 
   OledMemorySize(x1, x2, y1, y2);
   OledDdramAccess();
-
-  for (int i = 0; i < size; i++) {
-    OledBuffer(data[i], size);
-  }
+  OledData(data, size);
 }
 
 /*
