@@ -12,7 +12,7 @@ int main(void) {
   Board_initSPI();
 
   Mailbox_Params_init(&mailboxParams);
-  mailboxHandle = Mailbox_create(sizeof(uint8_t) * 2, 1, &mailboxParams, NULL);
+  mailboxHandle = Mailbox_create(sizeof(int8_t) * 2, 1, &mailboxParams, NULL);
 
   if (mailboxHandle == NULL) {
     System_abort("Mailbox create failed\n");
