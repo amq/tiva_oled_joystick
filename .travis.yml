@@ -13,14 +13,12 @@ addons:
     build_command_prepend: "make clean; cov-configure --compiler arm-none-eabi-gcc --comptype gcc --template"
     build_command: "make"
     branch_pattern: coverity_scan
+    secure: "mN4TiSSxv5NwpZhw0q4MBCEK3KEwlx6yHLNU9Gnn4e3hQZcnDWtOAYmHW4dI6cqfi28obFWeXWMXaL7ykrEU+X++OX73FmfQI6zrrTBJ23pOQUUGWxXf9EZMOJe+2SzKrUQIiB0B4Ya60Fj1HB2q5RNC+gE9ci5TqK5E6dPtEjEKvTihxapp5l2bj86GTax4SPwca5UV3LnxDzj/Df47HVEzLFNm8JUPTVtvDQX5GDaVSWMaP+01WZ0GF2LRr+r6PPdSNpRXqNHU2HBcjtq34QgPV4UAIuw45RwB18pbKn//PWA58X9Nlakf2ueYiXPJhQ5dTv19eijOx5tHCxiUJN8YARRfeb61Pu+SDkf4NHNZeqHIws/TxPENGSHOzoIz61dmHKAllEUh1KOb4tJhd//F+oZBuwrJyjLDQOavbquELpJRgJUAxz16RzME19qgGQwEDyDEVvZIQ8/A0kruhmjG8Iir55btqmfeGMf07BiJrvig5Kel8jvGX5XAA9G8CrPldj4cF6sQGgk+V2vn3s+g3K/9QZaYpjYWETARiiYvXjS1U56xNdhIlEbRSx8Fo0W11QigQRiNKQrlGTEa9KQlsapF8PfF4bKRfhWlSbeLQYoIrbYvI9aKFGxTD01p7FMuUrrhvHvAh5wlLrD3wQupcUYd1pc1OJCY284TQ3I="
 
 env:
   global:
-    - secure: "mN4TiSSxv5NwpZhw0q4MBCEK3KEwlx6yHLNU9Gnn4e3hQZcnDWtOAYmHW4dI6cqfi28obFWeXWMXaL7ykrEU+X++OX73FmfQI6zrrTBJ23pOQUUGWxXf9EZMOJe+2SzKrUQIiB0B4Ya60Fj1HB2q5RNC+gE9ci5TqK5E6dPtEjEKvTihxapp5l2bj86GTax4SPwca5UV3LnxDzj/Df47HVEzLFNm8JUPTVtvDQX5GDaVSWMaP+01WZ0GF2LRr+r6PPdSNpRXqNHU2HBcjtq34QgPV4UAIuw45RwB18pbKn//PWA58X9Nlakf2ueYiXPJhQ5dTv19eijOx5tHCxiUJN8YARRfeb61Pu+SDkf4NHNZeqHIws/TxPENGSHOzoIz61dmHKAllEUh1KOb4tJhd//F+oZBuwrJyjLDQOavbquELpJRgJUAxz16RzME19qgGQwEDyDEVvZIQ8/A0kruhmjG8Iir55btqmfeGMf07BiJrvig5Kel8jvGX5XAA9G8CrPldj4cF6sQGgk+V2vn3s+g3K/9QZaYpjYWETARiiYvXjS1U56xNdhIlEbRSx8Fo0W11QigQRiNKQrlGTEa9KQlsapF8PfF4bKRfhWlSbeLQYoIrbYvI9aKFGxTD01p7FMuUrrhvHvAh5wlLrD3wQupcUYd1pc1OJCY284TQ3I="
-  
     - GCC_DIR="$HOME/gcc-arm-none-eabi-6_2-2016q4"
     - GCC_URL="https://developer.arm.com/-/media/Files/downloads/gnu-rm/6-2016q4/gcc-arm-none-eabi-6_2-2016q4-20161216-linux.tar.bz2"
-
     - XDCTOOLS_DIR="$HOME/ti/xdctools_3_32_00_06_core"
     - TIRTOS_DIR="$HOME/ti/tirtos_tivac_2_16_01_14"
     - TIRTOS_URL="http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/tirtos/2_16_01_14/exports/tirtos_tivac_setuplinux_2_16_01_14.bin"
@@ -37,7 +35,7 @@ install:
   - export PATH=$PATH:$GCC_DIR/bin
 
 script:
-  - make
+  - make -j 2
 
 deploy:
   provider: releases
