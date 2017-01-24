@@ -2,11 +2,11 @@
 #include "JoystickTask.h"
 #include "OledTask.h"
 
-static Mailbox_Handle mailboxHandle;
-static Mailbox_Params mailboxParams;
-
 int main(void) {
-  Board_initGeneral(CPU_FREQ);
+  static Mailbox_Handle mailboxHandle;
+  static Mailbox_Params mailboxParams;
+
+  (void)Board_initGeneral(CPU_FREQ);
   Board_initGPIO();
   Board_initI2C();
   Board_initSPI();

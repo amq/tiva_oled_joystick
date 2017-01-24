@@ -17,6 +17,5 @@
 #define AS5013_CONTROL2 0x2E
 #define AS5013_X 0x10
 #define AS5013_Y 0x11
-#define AS5013_SENSITIVITY 0x2A
 
 void JoystickTask_init(Mailbox_Handle mailboxHandle);
