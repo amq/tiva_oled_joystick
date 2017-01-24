@@ -87,18 +87,6 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         OledImage(image_bounce, x1, x2, y1, y2);
       }
 
-      /* down */
-      if (coordinates[1] < -SENSITIVITY) {
-        OledColor(BACKGROUND, x1, x2, y1, y2);
-        y1 = y1 + SPEED;
-        y2 = y2 + SPEED;
-        if (y1 > 95 || y2 > 95) {
-          y1 = 0;
-          y2 = START_X2 - START_X1;
-        }
-        OledImage(image_bounce, x1, x2, y1, y2);
-      }
-
       /* up */
       if (coordinates[1] > SENSITIVITY) {
         OledColor(BACKGROUND, x1, x2, y1, y2);
@@ -110,6 +98,18 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         }
         OledImage(image_bounce, x1, x2, y1, y2);
       }
+
+      /* down */
+      if (coordinates[1] < -SENSITIVITY) {
+        OledColor(BACKGROUND, x1, x2, y1, y2);
+        y1 = y1 + SPEED;
+        y2 = y2 + SPEED;
+        if (y1 > 95 || y2 > 95) {
+          y1 = 0;
+          y2 = START_X2 - START_X1;
+        }
+        OledImage(image_bounce, x1, x2, y1, y2);
+      }
     }
   }
 }
@@ -117,10 +117,13 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
 /*
  * @brief wrapper for fast SPI writes
  *
- * @param data the data to be written
+ * @param data the data to write
  * @param size the total count
  */
 static void SpiWrite(uint16_t *data, uint16_t size) {
+  uint16_t count = 0;
+  uint16_t offset = 0;
+
   SPI_Handle spiHandle;
   SPI_Params spiParams;
   SPI_Transaction spiTransaction;
@@ -134,15 +137,19 @@ static void SpiWrite(uint16_t *data, uint16_t size) {
     System_abort("SPI open failed\n");
   }
 
-  for (int current = 1, total = 1; total <= size; current++, total++) {
-    if (current == 1024 || total == size) {
-      spiTransaction.count = current; /* max 2048 bytes */
-      spiTransaction.txBuf = &data[total - current]; /* offset */
-      spiTransaction.rxBuf = NULL;
-      (void)SPI_transfer(spiHandle, &spiTransaction);
-      current = 0;
-    }
+  /* SEPS114A supports up to 2048 bytes per transaction */
+  do {
+    count = size < 1024 ? size : 1024;
+
+    spiTransaction.count = count;
+    spiTransaction.txBuf = &data[offset];
+    spiTransaction.rxBuf = NULL;
+    (void)SPI_transfer(spiHandle, &spiTransaction);
+
+    offset += count;
+    size -= count;
   }
+  while (size > 0);
 
   SPI_close(spiHandle);
 }
@@ -245,7 +252,7 @@ static void OledDdramAccess(void) {
 }
 
 /*
- * @brief sets the output region
+ * @brief sets the output area
  *
  * @param x1 the left border
  * @param x2 the right border
@@ -257,6 +264,23 @@ static void OledMemorySize(int16_t x1, int16_t x2, int16_t y1, int16_t y2) {
   OledCommand(SEPS114A_MEM_X2, x2);
   OledCommand(SEPS114A_MEM_Y1, y1);
   OledCommand(SEPS114A_MEM_Y2, y2);
+}
+
+/*
+ * @brief fills the specified area with data from an array
+ *
+ * @param color the color in R5G6B5
+ * @param x1 the left border
+ * @param x2 the right border
+ * @param y1 the bottom border
+ * @param y2 the top border
+ */
+static void OledImage(uint16_t *data, int16_t x1, int16_t x2, int16_t y1, int16_t y2) {
+  uint16_t size = (x2 - x1 + 1) * (y2 - y1 + 1);
+
+  OledMemorySize(x1, x2, y1, y2);
+  OledDdramAccess();
+  OledData(data, size);
 }
 
 /*
@@ -276,23 +300,6 @@ static void OledColor(uint16_t color, int16_t x1, int16_t x2, int16_t y1, int16_
   }
 
   OledImage(image_buffer, x1, x2, y1, y2);
-}
-
-/*
- * @brief fills the specified area with data from an array
- *
- * @param color the color in R5G6B5
- * @param x1 the left border
- * @param x2 the right border
- * @param y1 the bottom border
- * @param y2 the top border
- */
-static void OledImage(uint16_t *data, int16_t x1, int16_t x2, int16_t y1, int16_t y2) {
-  uint16_t size = (x2 - x1 + 1) * (y2 - y1 + 1);
-
-  OledMemorySize(x1, x2, y1, y2);
-  OledDdramAccess();
-  OledData(data, size);
 }
 
 /*
