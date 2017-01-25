@@ -2,11 +2,9 @@
 
 #define SPEED 2
 #define SENSITIVITY 12
-#define START_X1 80
-#define START_X2 95
-#define START_Y1 80
-#define START_Y2 95
 #define BACKGROUND 0x0000
+#define START_X 54
+#define START_Y 54
 
 #ifdef SSIM_2
 #define SPI_DESC Board_SPI0

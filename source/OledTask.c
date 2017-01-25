@@ -14,6 +14,7 @@ static void OledMemorySize(int16_t x1, int16_t x2, int16_t y1, int16_t y2);
 static void OledColor(uint16_t color, int16_t x1, int16_t x2, int16_t y1, int16_t y2);
 static void OledImage(uint16_t *data, int16_t x1, int16_t x2, int16_t y1, int16_t y2);
 static void OledClear(uint16_t color);
+static bool OledString(char *string, int16_t x2, int16_t y2);
 
 /*
  * @brief creates the joystick task
@@ -44,21 +45,31 @@ void OledTask_init(Mailbox_Handle mailboxHandle) {
 static void OledTaskFxn(UArg arg0, UArg arg1) {
   int8_t coordinates[2];
   int16_t x1, x2, y1, y2;
+  char *str = "Are you ready?";
+  int str_offset = 0;
 
   OledInit();
 
   /* draw the boot image */
-  OledImage(image_buffer, 0, 95, 0, 95);
+  OledImage(image_buffer.data, 0, 95, 0, 95);
   Task_sleep(2000);
-
   OledClear(BACKGROUND);
 
-  /* draw the object */
-  x1 = START_X1;
-  x2 = START_X2;
-  y1 = START_Y1;
-  y2 = START_Y2;
-  OledImage(image_bounce, x1, x2, y1, y2);
+  /* draw a long string */
+  while (!OledString(str + str_offset, 95, 60)) {
+    str_offset++;
+    Task_sleep(250);
+    OledClear(BACKGROUND);
+  }
+  Task_sleep(2000);
+  OledClear(BACKGROUND);
+
+  /* draw the object to be moved */
+  x1 = START_X - image_bounce.width + 1;
+  x2 = START_X;
+  y1 = START_Y - image_bounce.height + 1;
+  y2 = START_Y;
+  OledImage(image_bounce.data, x1, x2, y1, y2);
 
   while (1) {
     if (Mailbox_pend((Mailbox_Handle)arg0, coordinates, BIOS_WAIT_FOREVER)) {
@@ -68,11 +79,11 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         OledColor(BACKGROUND, x1, x2, y1, y2);
         x1 = x1 + SPEED;
         x2 = x2 + SPEED;
-        if (x1 > 95 || x2 > 95) {
+        if (x2 > 95) {
           x1 = 0;
-          x2 = START_X2 - START_X1;
+          x2 = image_bounce.width - 1;
         }
-        OledImage(image_bounce, x1, x2, y1, y2);
+        OledImage(image_bounce.data, x1, x2, y1, y2);
       }
 
       /* right */
@@ -80,11 +91,11 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         OledColor(BACKGROUND, x1, x2, y1, y2);
         x1 = x1 - SPEED;
         x2 = x2 - SPEED;
-        if (x1 < 0 || x2 < 0) {
-          x1 = START_X1;
-          x2 = START_X2;
+        if (x1 < 0) {
+          x1 = 95 - image_bounce.width + 1;
+          x2 = 95;
         }
-        OledImage(image_bounce, x1, x2, y1, y2);
+        OledImage(image_bounce.data, x1, x2, y1, y2);
       }
 
       /* up */
@@ -92,11 +103,11 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         OledColor(BACKGROUND, x1, x2, y1, y2);
         y1 = y1 - SPEED;
         y2 = y2 - SPEED;
-        if (y1 < 0 || y2 < 0) {
-          y1 = START_X1;
-          y2 = START_X2;
+        if (y1 < 0) {
+          y1 = 95 - image_bounce.height + 1;
+          y2 = 95;
         }
-        OledImage(image_bounce, x1, x2, y1, y2);
+        OledImage(image_bounce.data, x1, x2, y1, y2);
       }
 
       /* down */
@@ -104,11 +115,11 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
         OledColor(BACKGROUND, x1, x2, y1, y2);
         y1 = y1 + SPEED;
         y2 = y2 + SPEED;
-        if (y1 > 95 || y2 > 95) {
+        if (y2 > 95) {
           y1 = 0;
-          y2 = START_X2 - START_X1;
+          y2 = image_bounce.height - 1;
         }
-        OledImage(image_bounce, x1, x2, y1, y2);
+        OledImage(image_bounce.data, x1, x2, y1, y2);
       }
     }
   }
@@ -121,26 +132,26 @@ static void OledTaskFxn(UArg arg0, UArg arg1) {
  * @param size the total count
  */
 static void SpiWrite(uint16_t *data, uint16_t size) {
+  static SPI_Handle spiHandle = NULL;
   uint16_t count = 0;
   uint16_t offset = 0;
 
-  SPI_Handle spiHandle;
-  SPI_Params spiParams;
-  SPI_Transaction spiTransaction;
-
-  SPI_Params_init(&spiParams);
-  spiParams.bitRate = CPU_FREQ / 4;
-  spiParams.dataSize = 16;
-  spiHandle = SPI_open(SPI_DESC, &spiParams);
-
   if (spiHandle == NULL) {
-    System_abort("SPI open failed\n");
+    SPI_Params spiParams;
+    SPI_Params_init(&spiParams);
+    spiParams.bitRate = CPU_FREQ / 4;
+    spiParams.dataSize = 16;
+
+    if ((spiHandle = SPI_open(SPI_DESC, &spiParams)) == NULL) {
+      System_abort("SPI open failed\n");
+    }
   }
 
   /* SEPS114A supports up to 2048 bytes per transaction */
-  do {
+  while (size > 0) {
     count = size < 1024 ? size : 1024;
 
+    SPI_Transaction spiTransaction;
     spiTransaction.count = count;
     spiTransaction.txBuf = &data[offset];
     spiTransaction.rxBuf = NULL;
@@ -149,9 +160,6 @@ static void SpiWrite(uint16_t *data, uint16_t size) {
     offset += count;
     size -= count;
   }
-  while (size > 0);
-
-  SPI_close(spiHandle);
 }
 
 /*
@@ -296,10 +304,10 @@ static void OledColor(uint16_t color, int16_t x1, int16_t x2, int16_t y1, int16_
   uint16_t size = (x2 - x1 + 1) * (y2 - y1 + 1);
 
   for (int i = 0; i < size; i++) {
-    image_buffer[i] = color;
+    image_buffer.data[i] = color;
   }
 
-  OledImage(image_buffer, x1, x2, y1, y2);
+  OledImage(image_buffer.data, x1, x2, y1, y2);
 }
 
 /*
@@ -309,4 +317,37 @@ static void OledColor(uint16_t color, int16_t x1, int16_t x2, int16_t y1, int16_
  */
 static void OledClear(uint16_t color) {
   OledColor(color, 0, 95, 0, 95);
+}
+
+/*
+ * @brief prints a string
+ *
+ * @param string the string to print
+ * @param x the x-margin of the beginning
+ * @param y the y-margin of the beginning
+ *
+ * @returns true if the whole string could be printed and false if it was too long
+ */
+static bool OledString(char *string, int16_t x2, int16_t y2) {
+  int x1, y1;
+
+  for (int character = 0; string[character] != '\0'; character++) {
+
+    for (int image = 0; image < Font.length; image++) {
+      if (Font.chars[image].code == string[character]) {
+
+        x1 = x2 - Font.chars[image].image->width + 1;
+        y1 = y2 - Font.chars[image].image->height + 1;
+
+        if (x1 < 0 || y1 < 0) {
+          return false;
+        }
+
+        OledImage(Font.chars[image].image->data, x1, x2, y1, y2);
+        x2 = x2 - Font.chars[image].image->width + 1;
+      }
+    }
+  }
+
+  return true;
 }

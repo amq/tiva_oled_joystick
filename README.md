@@ -24,3 +24,5 @@ Prerequisites
 Documentation
 - [TI-RTOS User's Guide](http://www.ti.com/lit/ug/spruhd4m/spruhd4m.pdf)
 - [SYS/BIOS (TI-RTOS Kernel) User's Guide](http://www.ti.com/lit/ug/spruex3q/spruex3q.pdf)
+
+Image and font conversion was done using [LCD Image Converter](https://github.com/riuson/lcd-image-converter)
